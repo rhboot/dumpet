@@ -19,33 +19,38 @@
  * Author:  Peter Jones <pjones@redhat.com>
  */
 
-#include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
 #include <popt.h>
 
-typedef char Sector[0x800];
+#include "dumpet.h"
 
-static inline off_t get_sector_offset(int sector_number)
+static void dump_boot_record(FILE *iso)
 {
-	Sector sector;
-	return sector_number * sizeof(sector);
+	BootRecordVolumeDescriptor bootrecord;
+	int rc;
+
+	rc = read_sector(iso, 17, (Sector *)&bootrecord);
+	if (rc < 0)
+		exit(3);
+
+	write(STDOUT_FILENO, bootrecord.Raw, sizeof(bootrecord.Raw));
 }
 
 static int dumpet(const char *filename, FILE *iso)
 {
 	Sector sector;
-	size_t n;
-	fseek(iso, get_sector_offset(16), SEEK_SET);
+	int rc;
 
-	n = fread(sector, sizeof(sector), 1, iso);
+	dump_boot_record(iso);
 
-	if (n != 1) {
-		fprintf(stderr, "dumpet: Error reading iso: %m\n");
-		exit(3);
-	}
+	rc = read_sector(iso, 16, &sector);
+	if (rc < 0)
+		exit(4);
 
 	write(STDOUT_FILENO, sector, sizeof(sector));
 
