@@ -36,6 +36,15 @@ typedef union {
 	} __attribute__((packed));
 } BootRecordVolumeDescriptor;
 
+typedef union {
+	char Raw[32];
+} BootCatalogEntry;
+
+typedef union {
+	Sector Raw;
+	BootCatalogEntry Entry[64];
+} BootCatalog;
+
 static inline off_t get_sector_offset(int sector_number)
 {
 	Sector sector;
