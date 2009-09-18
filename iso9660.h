@@ -16,35 +16,10 @@
  *
  * Author:  Peter Jones <pjones@redhat.com>
  */
+#ifndef ISO9660_H
+#define ISO9660_H
 
-#ifndef DUMPET_H
-#define DUMPET_H
+typedef char Sector[0x800];
 
-#include <errno.h>
-
-#include "iso9660.h"
-#include "eltorito.h"
-
-static inline off_t get_sector_offset(int sector_number)
-{
-	Sector sector;
-	return sector_number * sizeof(sector);
-}
-
-static inline int read_sector(FILE *iso, int sector_number, Sector *sector)
-{
-	size_t n;
-	fseek(iso, get_sector_offset(sector_number), SEEK_SET);
-	n = fread(sector, sizeof(*sector), 1, iso);
-
-	if (n != 1) {
-		int errnum = errno;
-		fprintf(stderr, "dumpet: Error reading iso: %m\n");
-		errno = errnum;
-		return -errno;
-	}
-	return 0;
-}
-
-#endif /* DUMPET_H */
+#endif /* ISO9660_H */
 /* vim:set shiftwidth=8 softtabstop=8: */
