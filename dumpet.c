@@ -28,31 +28,69 @@
 #include <popt.h>
 
 #include "dumpet.h"
+#include "endian.h"
 
-static void dump_boot_record(FILE *iso)
+static uint32_t dump_boot_record(const char *filename, FILE *iso)
 {
-	BootRecordVolumeDescriptor bootrecord;
+	BootRecordVolumeDescriptor br;
 	int rc;
+	char BootSystemId[32];
+	char *ElTorito = "EL TORITO SPECIFICATION";
+	uint32_t BootCatalogLBA;
 
-	rc = read_sector(iso, 17, (Sector *)&bootrecord);
+	memset(BootSystemId, '\0', sizeof(BootSystemId));
+	memcpy(BootSystemId, ElTorito, strlen(ElTorito)); 
+
+	rc = read_sector(iso, 17, (Sector *)&br);
 	if (rc < 0)
 		exit(3);
+	//write(STDOUT_FILENO, br.Raw, 0x800);
 
-	write(STDOUT_FILENO, bootrecord.Raw, sizeof(bootrecord.Raw));
+	if (br.BootRecordIndicator != 0) {
+		fprintf(stderr, "\"%s\" does not contain an El Torito bootable image.\n", filename);
+		fprintf(stderr, "BootRecordIndicator: %d\n", br.BootRecordIndicator);
+		exit(5);
+	}
+	if (strncmp(br.Iso9660, "CD001", 5)) {
+		fprintf(stderr, "\"%s\" does not contain an El Torito bootable image.\n", filename);
+		memcpy(BootSystemId, br.Iso9660, 5);
+		BootSystemId[5] = '\0';
+		fprintf(stderr, "ISO-9660 Identifier: \"%s\"\n", BootSystemId);
+		exit(6);
+	}
+	if (memcmp(br.BootSystemId, BootSystemId, sizeof(BootSystemId))) {
+		int i;
+		fprintf(stderr, "\"%s\" does not contain an El Torito bootable image.\n", filename);
+		fprintf(stderr, "target Boot System Identifier: \"");
+		for (i = 0; i < sizeof(BootSystemId); i++)
+			fprintf(stderr, "%02x", BootSystemId[i]);
+		fprintf(stderr, "\n");
+		memcpy(BootSystemId, br.BootSystemId, sizeof(BootSystemId));
+		fprintf(stderr, "actual Boot System Identifier: \"");
+		for (i = 0; i < sizeof(BootSystemId); i++)
+			fprintf(stderr, "%02x", BootSystemId[i]);
+		fprintf(stderr, "\n");
+
+		exit(7);
+	}
+	memcpy(&BootCatalogLBA, &br.BootCatalogLBA, sizeof(BootCatalogLBA));
+	return le32_to_cpu(BootCatalogLBA);
 }
 
 static int dumpet(const char *filename, FILE *iso)
 {
 	Sector sector;
+	uint32_t bootCatLba;
 	int rc;
 
-	dump_boot_record(iso);
+	bootCatLba = dump_boot_record(filename, iso);
+	fprintf(stdout, "Boot Catalog LBA is 0x%08x\n", bootCatLba);
 
 	rc = read_sector(iso, 16, &sector);
 	if (rc < 0)
 		exit(4);
 
-	write(STDOUT_FILENO, sector, sizeof(sector));
+	// write(STDOUT_FILENO, sector, sizeof(sector));
 
 	return 0;
 }
