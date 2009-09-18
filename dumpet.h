@@ -17,8 +17,8 @@
  * Author:  Peter Jones <pjones@redhat.com>
  */
 
-#ifndef _DUMPET_H
-#define _DUMPET_H
+#ifndef DUMPET_H
+#define DUMPET_H
 
 #include <errno.h>
 
@@ -57,5 +57,5 @@ static inline int read_sector(FILE *iso, int sector_number, Sector *sector)
 	return 0;
 }
 
-#endif /* _DUMPET_H */
+#endif /* DUMPET_H */
 /* vim:set shiftwidth=8 softtabstop=8: */

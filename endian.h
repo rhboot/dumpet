@@ -16,10 +16,10 @@
  *
  * Author:  Peter Jones <pjones@redhat.com>
  */
-#ifndef _ENDIAN_H
-#define _ENDIAN_H
+#ifndef ENDIAN_H
+#define ENDIAN_H
 
-#include <sys/endian.h>
+#include <endian.h>
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 #define cpu_to_le16(x) (x)
@@ -49,4 +49,4 @@
 #define le64_to_cpu(x) __bswap_64(x)
 #endif
 
-#endif /* _ENDIAN_H */
+#endif /* ENDIAN_H */
