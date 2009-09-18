@@ -50,3 +50,4 @@
 #endif
 
 #endif /* ENDIAN_H */
+/* vim:set shiftwidth=8 softtabstop=8: */
