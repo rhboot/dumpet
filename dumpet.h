@@ -28,12 +28,12 @@ typedef union {
 	Sector Raw;
 	struct {
 		char BootRecordIndicator;
-		char Iso9660[4];
+		char Iso9660[5];
 		char Version;
-		char BootSystemId[30];
+		char BootSystemId[32];
 		char Reserved0[32];
 		uint32_t BootCatalogLBA;
-	};
+	} __attribute__((packed));
 } BootRecordVolumeDescriptor;
 
 static inline off_t get_sector_offset(int sector_number)
