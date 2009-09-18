@@ -36,13 +36,116 @@ typedef union {
 	} __attribute__((packed));
 } BootRecordVolumeDescriptor;
 
-typedef union {
-	char Raw[32];
-} BootCatalogEntry;
+typedef enum {
+	x86 = 0,
+	ppc = 1,
+	m68kmac = 2,
+	efi=0xef
+} PlatformId;
+
+typedef enum {
+	NotBootable,
+	Bootable = 0x88
+} BootIndicator;
+
+typedef enum {
+	NoEmulation,
+	OneTwoDiskette,
+	OneFourFourDiskette,
+	TwoEightEightDiskette,
+	HardDisk
+} BootMediaType;
+
+typedef enum {
+	Header = 0x90,
+	FinalHeader = 0x91
+} HeaderIndicator;
+
+/* A typical boot catalog validation entry looks like this:
+ * 00000000  01 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+ * 00000010  00 00 00 00 00 00 00 00  00 00 00 00 aa 55 55 aa  |.............UU.|
+ */
+typedef struct {
+	char HeaderId;
+	char PlatformId;
+	char Reserved0[2];
+	char Id[24];
+	uint16_t Checksum;
+	char FiveFive;
+	char AA;
+} __attribute__((packed)) BootCatalogValidationEntry;
+
+/* A an Initial/Default Entry looks like this:
+ * 00000020  88 00 00 00 00 00 1c 00  91 01 00 00 00 00 00 00  |................|
+ * 00000030  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+ */
+typedef struct {
+	char BootIndicator;
+	char BootMediaType;
+	uint16_t LoadSegment;
+	char SystemType;
+	char Reserved0;
+	uint16_t SectorCount;
+	uint32_t LoadRBA;
+} BootCatalogDefaultEntry;
+
+/* An EFI Section Header Entry looks like this:
+ * 00000040  91 ef 01 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+ * 00000050  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+ */
+typedef {
+	char HeaderIndicator;
+	char PlatformId;
+	uint16_t SectionEntryCount;
+	char Id[28];
+} BootCatalogSectionHeaderEntry;
+
+typedef enum {
+	NoSelectionCriteria,
+	LanguageAndVersionInformation
+} SelectionCriteriaType;
+
+/* An EFI Section Entry looks like this:
+ * 00000060  88 00 00 00 00 00 04 00  b1 00 00 00 00 00 00 00  |................|
+ * 00000070  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+ */
+typedef {
+	char BootIndicator;
+	char BootMediaType;
+	uint16_t LoadSegment;
+	char SystemType;
+	char Reserved0;
+	uint16_t SectorCount;
+	uint32_t LoadRBA;
+	char SelectionCriteriaType;
+	char VendorUniqueSelectionCriteria[18];
+} BootCatalogSectionEntry;
 
 typedef union {
+	char Raw[32];
+	BootCatalogValidationEntry ValidationEntry;
+	BootCatalogDefaultEntry DefaultEntry;
+	BootCatalogSectionHeaderEntry SectionHeaderEntry;
+	BootCatalogSectionEntry SectionEntry;
+} BootCatalogEntry;
+
+/* A(n a)typical boot catalog looks like this:
+ * Validation Entry:
+ * 00000000  01 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+ * 00000010  00 00 00 00 00 00 00 00  00 00 00 00 aa 55 55 aa  |.............UU.|
+ * Initial/Default Entry:
+ * 00000020  88 00 00 00 00 00 1c 00  91 01 00 00 00 00 00 00  |................|
+ * 00000030  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+ * Section Header Entry:
+ * 00000040  91 ef 01 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+ * 00000050  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+ * Section Entry:
+ * 00000060  88 00 00 00 00 00 04 00  b1 00 00 00 00 00 00 00  |................|
+ * 00000070  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+ */
+typedef union {
 	Sector Raw;
-	BootCatalogEntry Entry[64];
+	BootCatalogEntry Catalog[64];
 } BootCatalog;
 
 static inline off_t get_sector_offset(int sector_number)
