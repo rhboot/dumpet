@@ -1,5 +1,5 @@
 
-dumpiso : dumpiso.o
+dumpet : dumpet.o
 	$(CC) -g3 -O2 -Wall -Werror -o $@ $^
 
 %.o : %.c
