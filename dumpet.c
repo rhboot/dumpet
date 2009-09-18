@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <inttypes.h>
 
 #include <popt.h>
 
@@ -77,20 +78,41 @@ static uint32_t dump_boot_record(const char *filename, FILE *iso)
 	return le32_to_cpu(BootCatalogLBA);
 }
 
+static int checkValidationEntry(BootCatalogValidationEntry *ValidationEntry)
+{
+	uint16_t sum = 0;
+	char *ve = (char *)ValidationEntry;
+	uint16_t checksum;
+	int i;
+	for (i = 0; i < 32; i+=2) {
+		sum += ve[i];
+		sum += ve[i+1] * 256;
+	}
+
+	memcpy(&checksum, &ValidationEntry->Checksum, sizeof(checksum));
+	checksum = le32_to_cpu(checksum);
+	
+	printf("sum: %d (0x%08x)\n", sum, sum);
+	return 0;
+}
+
 static int dumpet(const char *filename, FILE *iso)
 {
-	Sector sector;
+	BootCatalog bc;
 	uint32_t bootCatLba;
 	int rc;
 
 	bootCatLba = dump_boot_record(filename, iso);
-	fprintf(stdout, "Boot Catalog LBA is 0x%08x\n", bootCatLba);
+	//fprintf(stdout, "Boot Catalog LBA is 0x%08x\n", bootCatLba);
 
-	rc = read_sector(iso, 16, &sector);
+	rc = read_sector(iso, bootCatLba, (Sector *)&bc);
 	if (rc < 0)
 		exit(4);
 
-	// write(STDOUT_FILENO, sector, sizeof(sector));
+	rc = checkValidationEntry(&bc.Catalog[0].ValidationEntry);
+
+
+	//write(STDOUT_FILENO, &bc, sizeof(bc));
 
 	return 0;
 }
@@ -103,6 +125,7 @@ static void usage(int error)
 	                 "       dumpet -i <file> [-d]\n");
 	exit(error);
 }
+
 
 int main(int argc, char *argv[])
 {
