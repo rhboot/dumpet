@@ -22,25 +22,43 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <popt.h>
+
+typedef char Sector[0x800];
+
+static inline off_t get_sector_offset(int sector_number)
+{
+	Sector sector;
+	return sector_number * sizeof(sector);
+}
+
+static int dumpet(const char *filename, FILE *iso)
+{
+	Sector sector;
+	size_t n;
+	fseek(iso, get_sector_offset(16), SEEK_SET);
+
+	n = fread(sector, sizeof(sector), 1, iso);
+
+	if (n != 1) {
+		fprintf(stderr, "dumpet: Error reading iso: %m\n");
+		exit(3);
+	}
+
+	write(STDOUT_FILENO, sector, sizeof(sector));
+
+	return 0;
+}
 
 static void usage(int error)
 {
 	FILE *outfile = error ? stderr : stdout;
 
-	fprintf(outfile, "usage: dumpet <file>\n");
+	fprintf(outfile, "usage: dumpet --help\n"
+	                 "       dumpet -i <file> [-d]\n");
 	exit(error);
-}
-
-typedef char Sector[0x800];
-
-static int dumpet(const char *filename, FILE *iso)
-{
-	Sector sector;
-	fseek(iso, 16 * sizeof(sector), SEEK_SET);
-
-	return 0;
 }
 
 int main(int argc, char *argv[])
@@ -50,11 +68,13 @@ int main(int argc, char *argv[])
 
 	int help = 0;
 	int dumpDiskImage = 0;
+	char *filename = NULL;
 
 	poptContext optCon;
 	struct poptOption optionTable[] = {
-		{ "help", '?', POPT_ARG_NONE, &help, 0, NULL, NULL},
-		{ "dumpdisks", 'd', POPT_ARG_NONE, &dumpDiskImage, 0, NULL, NULL},
+		{ "help", '?', POPT_ARG_NONE, &help, 0, NULL, "help"},
+		{ "dumpdisks", 'd', POPT_ARG_NONE, &dumpDiskImage, 0, NULL, "dump each El Torito boot image into a file"},
+		{ "iso", 'i', POPT_ARG_STRING, &filename, 0, NULL, "input ISO image"},
 		{0}
 	};
 
@@ -64,23 +84,26 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "dumpet: bad option \"%s\": %s\n",
 			poptBadOption(optCon, POPT_BADOPTION_NOALIAS),
 			poptStrerror(rc));
+		usage(2);
 		exit(2);
 	}
 
-	if (argc != 2)
-		usage(1);
-	if (!strcmp(argv[1], "--help") || !strcmp(argv[1], "-?"))
+	if (help)
 		usage(0);
+	else if (!filename)
+		usage(3);
 
-	iso = fopen(argv[1], "r");
+	iso = fopen(filename, "r");
 	if (!iso) {
-		fprintf(stderr, "Could not open \"%s\": %m\n", argv[1]);
+		fprintf(stderr, "Could not open \"%s\": %m\n", filename);
 		exit(2);
 	}
 
-	ret = dumpet(iso);
+	rc = dumpet(filename, iso);
 	
-	return ret;
+	free(filename);
+	poptFreeContext(optCon);
+	return rc;
 }
 
 /* vim:set shiftwidth=8 softtabstop=8: */
