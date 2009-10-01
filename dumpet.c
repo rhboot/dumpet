@@ -95,8 +95,10 @@ static int checkValidationEntry(BootCatalogValidationEntry *ValidationEntry)
 	}
 
 	sum += checksum;
-	if (sum != 0)
+	if (sum != 0) {
 		printf("Validation Entry Checksum is incorrect: %d (%04x)\n", sum, sum);
+		return 1;
+	}
 
 	return 0;
 }
@@ -115,7 +117,6 @@ static int dumpet(const char *filename, FILE *iso)
 		exit(4);
 
 	rc = checkValidationEntry(&bc.Catalog[0].ValidationEntry);
-
 
 	//write(STDOUT_FILENO, &bc, sizeof(bc));
 
