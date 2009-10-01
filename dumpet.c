@@ -75,7 +75,7 @@ static uint32_t dump_boot_record(const char *filename, FILE *iso)
 		exit(7);
 	}
 	memcpy(&BootCatalogLBA, &br.BootCatalogLBA, sizeof(BootCatalogLBA));
-	return le32_to_cpu(BootCatalogLBA);
+	return iso731_to_cpu32(BootCatalogLBA);
 }
 
 static int checkValidationEntry(BootCatalogValidationEntry *ValidationEntry)
@@ -84,15 +84,20 @@ static int checkValidationEntry(BootCatalogValidationEntry *ValidationEntry)
 	char *ve = (char *)ValidationEntry;
 	uint16_t checksum;
 	int i;
+
+	memcpy(&checksum, &ValidationEntry->Checksum, sizeof(checksum));
+	checksum = iso721_to_cpu16(checksum);
+	ValidationEntry->Checksum = 0;
+
 	for (i = 0; i < 32; i+=2) {
 		sum += ve[i];
 		sum += ve[i+1] * 256;
 	}
 
-	memcpy(&checksum, &ValidationEntry->Checksum, sizeof(checksum));
-	checksum = le32_to_cpu(checksum);
-	
-	printf("sum: %d (0x%08x)\n", sum, sum);
+	sum += checksum;
+	if (sum != 0)
+		printf("Validation Entry Checksum is incorrect: %d (%04x)\n", sum, sum);
+
 	return 0;
 }
 
