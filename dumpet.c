@@ -96,8 +96,189 @@ static int checkValidationEntry(BootCatalogValidationEntry *ValidationEntry)
 
 	sum += checksum;
 	if (sum != 0) {
-		printf("Validation Entry Checksum is incorrect: %d (%04x)\n", sum, sum);
+		printf("Validation Entry Checksum is incorrect: %d (%04x)\n",
+			sum, sum);
 		return 1;
+	}
+
+	return 0;
+}
+
+static int dumpEntry(BootCatalogEntry *bc, int header_num, int entry_num,
+			int *next_header_num, const char *filename,
+			int file_num)
+{
+	BootCatalogValidationEntry *ValidationEntry =
+		(BootCatalogValidationEntry *)&bc[header_num];
+	BootCatalogSectionHeaderEntry *SectionHeaderEntry =
+		(BootCatalogSectionHeaderEntry *)&bc[header_num];
+	uint16_t loadseg;
+	uint16_t sectors;
+	uint32_t lba;
+	unsigned char platform_id;
+
+	switch (ValidationEntry->HeaderIndicator) {
+		case ValidationIndicator:
+			platform_id = ValidationEntry->PlatformId;
+			break;
+		case SectionHeaderIndicator:
+		case FinalSectionHeaderIndicator:
+			platform_id = SectionHeaderEntry->PlatformId;
+			break;
+		default:
+			/* almost always x86 anyway -- if it's broken, it's
+			 * probably still x86. */
+			platform_id = 0;
+			break;		
+	}
+
+	if (ValidationEntry->HeaderIndicator == ValidationIndicator) {
+		BootCatalogDefaultEntry *DefaultEntry =
+			(BootCatalogDefaultEntry *)&bc[entry_num];
+
+		printf("Boot Catalog Default Entry:\n");
+		switch (DefaultEntry->BootIndicator) {
+			case NotBootable:
+				printf("\tEntry is not bootable\n");
+				break;
+			case Bootable:
+				printf("\tEntry is bootable\n");
+				break;
+			default:
+				printf("\tInvalid boot indicator\n");
+				break;
+		}
+
+		printf("\tBoot Media emulation type: ");
+		switch (DefaultEntry->BootMediaType) {
+			case NoEmulation:
+				printf("no emulation\n");
+				break;
+			case OneTwoDiskette:
+				printf("1.2MB floppy diskette emulation\n");
+				break;
+			case OneFourFourDiskette:
+				printf("1.44MB floppy diskette emulation\n");
+				break;
+			case TwoEightEightDiskette:
+				printf("2.88MB floppy diskette emulation\n");
+				break;
+			case HardDisk:
+				printf("hard disk emulation\n");
+				break;
+			default:
+				printf("invalid boot media emulation type\n");
+				break;
+		}
+
+		memcpy(&loadseg, &DefaultEntry->LoadSegment, sizeof(loadseg));
+		loadseg = iso721_to_cpu16(loadseg);
+
+		switch (platform_id) {
+			case x86:
+				printf("\tMedia load segment: 0x%04x\n",
+					loadseg == 0 ? 0x7c0 : loadseg);
+				break;
+			case ppc:
+			case m68kmac:
+			case efi:
+				printf("\tMedia load address: %d (0x%04x)\n",
+					loadseg * 0x10, loadseg * 0x10);
+				break;
+			default:
+				printf("\tMedia load address: %d (0x%04x) (raw value)\n",
+					loadseg, loadseg);
+				break;
+		}
+
+		printf("\tSystem type: %d (0x%02x)\n", DefaultEntry->SystemType,
+			DefaultEntry->SystemType);
+
+		memcpy(&sectors, &DefaultEntry->SectorCount, sizeof(sectors));
+#if 0		/* genisoimage doesn't actually convert this -- so it's actually in 
+		 * host byte order :(
+		 */
+		sectors = iso721_to_cpu16(sectors);
+#endif
+		printf("\tLoad Sectors: %d (0x%04x)\n", sectors, sectors);
+
+		memcpy(&lba, &DefaultEntry->LoadLBA, sizeof(lba));
+		lba = iso731_to_cpu32(lba);
+		printf("\tLoad LBA: %d (0x%08x)\n", lba, lba);
+	} else {
+		BootCatalogSectionEntry *SectionEntry =
+			(BootCatalogSectionEntry *)&bc[entry_num];
+
+		printf("Boot Catalog Section Entry:\n");
+		switch (SectionEntry->BootIndicator) {
+			case NotBootable:
+				printf("\tEntry is not bootable\n");
+				break;
+			case Bootable:
+				printf("\tEntry is bootable\n");
+				break;
+			default:
+				printf("\tInvalid boot indicator\n");
+				break;
+		}
+#if 0
+	printf("\tBoot Media emulation type: ");
+	switch (DefaultEntry->BootMediaType) {
+		case NoEmulation:
+			printf("no emulation\n");
+			break;
+		case OneTwoDiskette:
+			printf("1.2MB floppy diskette emulation\n");
+			break;
+		case OneFourFourDiskette:
+			printf("1.44MB floppy diskette emulation\n");
+			break;
+		case TwoEightEightDiskette:
+			printf("2.88MB floppy diskette emulation\n");
+			break;
+		case HardDisk:
+			printf("hard disk emulation\n");
+			break;
+		default:
+			printf("invalid boot media emulation type\n");
+			break;
+	}
+
+	memcpy(&loadseg, &DefaultEntry->LoadSegment, sizeof(loadseg));
+	loadseg = iso721_to_cpu16(loadseg);
+
+	switch (platform_id) {
+		case x86:
+			printf("\tMedia load segment: 0x%04x\n",
+				loadseg == 0 ? 0x7c0 : loadseg);
+			break;
+		case ppc:
+		case m68kmac:
+		case efi:
+			printf("\tMedia load address: %d (0x%04x)\n",
+				loadseg * 0x10, loadseg * 0x10);
+			break;
+		default:
+			printf("\tMedia load address: %d (0x%04x) (raw value)\n",
+				loadseg, loadseg);
+			break;
+	}
+
+	printf("\tSystem type: %d (0x%02x)\n", DefaultEntry->SystemType,
+		DefaultEntry->SystemType);
+
+	memcpy(&sectors, &DefaultEntry->SectorCount, sizeof(sectors));
+#if 0	/* genisoimage doesn't actually convert this -- so it's actually in 
+	 * host byte order :(
+	 */
+	sectors = iso721_to_cpu16(sectors);
+#endif
+	printf("\tLoad Sectors: %d (0x%04x)\n", sectors, sectors);
+
+	memcpy(&lba, &DefaultEntry->LoadLBA, sizeof(lba));
+	lba = iso731_to_cpu32(lba);
+	printf("\tLoad LBA: %d (0x%08x)\n", lba, lba);
+#endif
 	}
 
 	return 0;
@@ -107,6 +288,8 @@ static int dumpet(const char *filename, FILE *iso)
 {
 	BootCatalog bc;
 	uint32_t bootCatLba;
+	int filenum = 0;
+	int next_header_num = 0;
 	int rc;
 
 	bootCatLba = dump_boot_record(filename, iso);
@@ -117,6 +300,22 @@ static int dumpet(const char *filename, FILE *iso)
 		exit(4);
 
 	rc = checkValidationEntry(&bc.Catalog[0].ValidationEntry);
+
+	rc = dumpEntry(&bc.Catalog[0], next_header_num, next_header_num+1,
+			&next_header_num, filename, filenum++);
+
+	while (1) {
+		BootCatalogSectionHeaderEntry *SectionHeader =
+			(BootCatalogSectionHeaderEntry *)&bc.Catalog[next_header_num];
+
+		if (SectionHeader->HeaderIndicator == SectionHeaderIndicator ||
+				SectionHeader->HeaderIndicator == FinalSectionHeaderIndicator) {
+			rc = dumpEntry(&bc.Catalog[0], next_header_num, next_header_num+1,
+					&next_header_num, filename, filenum++);
+		} else {
+			break;
+		}
+	}
 
 	//write(STDOUT_FILENO, &bc, sizeof(bc));
 
