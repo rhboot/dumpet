@@ -34,6 +34,12 @@ typedef union {
 } BootRecordVolumeDescriptor;
 
 typedef enum {
+	ValidationEntry = 0x01,
+	SectionHeader = 0x90,
+	FinalSectionHeader = 0x91,
+} SectionHeaderId;
+
+typedef enum {
 	x86 = 0,
 	ppc = 1,
 	m68kmac = 2,
@@ -77,13 +83,13 @@ typedef struct {
  * 00000030  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
  */
 typedef struct {
-	char BootIndicator;
-	char BootMediaType;
+	unsigned char BootIndicator;
+	unsigned char BootMediaType;
 	uint16_t LoadSegment;
 	char SystemType;
 	char Reserved0;
 	uint16_t SectorCount;
-	uint32_t LoadRBA;
+	uint32_t LoadLBA;
 } BootCatalogDefaultEntry;
 
 /* An EFI Section Header Entry looks like this:
