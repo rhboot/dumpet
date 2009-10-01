@@ -34,10 +34,11 @@ typedef union {
 } BootRecordVolumeDescriptor;
 
 typedef enum {
-	ValidationEntry = 0x01,
-	SectionHeader = 0x90,
-	FinalSectionHeader = 0x91,
-} SectionHeaderId;
+	ValidationIndicator = 0x01,
+	SectionHeaderIndicator = 0x90,
+	FinalSectionHeaderIndicator = 0x91,
+	ExtensionIndicator = 0x44,
+} SectionHeaderIndicatorType;
 
 typedef enum {
 	x86 = 0,
@@ -59,17 +60,12 @@ typedef enum {
 	HardDisk
 } BootMediaType;
 
-typedef enum {
-	Header = 0x90,
-	FinalHeader = 0x91
-} HeaderIndicator;
-
 /* A typical boot catalog validation entry looks like this:
  * 00000000  01 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
  * 00000010  00 00 00 00 00 00 00 00  00 00 00 00 aa 55 55 aa  |.............UU.|
  */
 typedef struct {
-	char HeaderId;
+	unsigned char HeaderIndicator;
 	char PlatformId;
 	char Reserved0[2];
 	char Id[24];
@@ -113,13 +109,13 @@ typedef enum {
  * 00000070  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
  */
 typedef struct {
-	char BootIndicator;
-	char BootMediaType;
+	unsigned char BootIndicator;
+	unsigned char BootMediaType;
 	uint16_t LoadSegment;
-	char SystemType;
+	unsigned char SystemType;
 	char Reserved0;
 	uint16_t SectorCount;
-	uint32_t LoadRBA;
+	uint32_t LoadLBA;
 	char SelectionCriteriaType;
 	char VendorUniqueSelectionCriteria[18];
 } BootCatalogSectionEntry;
