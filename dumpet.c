@@ -95,6 +95,8 @@ static int checkValidationEntry(BootCatalogValidationEntry *ValidationEntry)
 	}
 
 	sum += checksum;
+	checksum = cpu16_to_iso721(checksum);
+	memcpy(&ValidationEntry->Checksum, &checksum, sizeof(checksum));
 	if (sum != 0) {
 		printf("Validation Entry Checksum is incorrect: %d (%04x)\n",
 			sum, sum);
@@ -102,6 +104,83 @@ static int checkValidationEntry(BootCatalogValidationEntry *ValidationEntry)
 	}
 
 	return 0;
+}
+
+static void printPlatformId(uint16_t platformId)
+{
+	printf("\tPlatformId: 0x%02x ", platformId);
+	switch (platformId) {
+		case x86:
+			printf("(80x86)\n");
+			break;
+		case ppc:
+			printf("(PPC)\n");
+			break;
+		case m68kmac:
+			printf("(m68k Macintosh)\n");
+			break;
+		case efi:
+			printf("(EFI)\n");
+			break;
+		default:
+			printf("(Unknown)\n");
+			break;
+	}
+}
+
+static void dumpValidationEntry(BootCatalogValidationEntry *ValidationEntry)
+{
+	char id_string[25];
+	uint16_t csum;
+	
+	printf("Validation Entry:\n");
+
+	printf("\tHeader Indicator: 0x%02x (%s)\n",
+		ValidationEntry->HeaderIndicator,
+		ValidationEntry->HeaderIndicator == ValidationIndicator
+			? "Validation Entry"
+			: "Invalid");
+
+	printPlatformId(ValidationEntry->PlatformId);
+
+	memcpy(id_string, ValidationEntry->Id, 24);
+	id_string[24] = '\0';
+	printf("\tID: \"%s\"\n", id_string);
+
+	memcpy(&csum, &ValidationEntry->Checksum, sizeof(csum));
+	csum = iso721_to_cpu16(csum);
+	printf("\tChecksum: 0x%04x\n", csum);
+
+	printf("\tKey bytes: 0x%02x%02x\n", ValidationEntry->FiveFive,
+					    ValidationEntry->AA);
+}
+
+static void dumpSectionHeaderEntry(BootCatalogSectionHeaderEntry *SectionHeaderEntry)
+{
+	char id_string[29];
+
+	printf("Section Header Entry:\n");
+
+	printf("\tHeader Indicator: 0x%02x ", SectionHeaderEntry->HeaderIndicator);
+	switch (SectionHeaderEntry->HeaderIndicator) {
+		case SectionHeaderIndicator:
+			printf("(Section Header Entry)\n");
+			break;
+		case FinalSectionHeaderIndicator:
+			printf("(Final Section Header Entry)\n");
+			break;
+		default:
+			printf("(Invalid)\n");
+			break;
+	}
+
+	printPlatformId(SectionHeaderEntry->PlatformId);
+
+	printf("\tSection Entries: %d\n", SectionHeaderEntry->SectionEntryCount);
+
+	memcpy(id_string, SectionHeaderEntry->Id, 28);
+	id_string[28] = '\0';
+	printf("\tID: \"%s\"\n", id_string);
 }
 
 static int dumpEntry(BootCatalogEntry *bc, int header_num, int entry_num,
@@ -120,10 +199,12 @@ static int dumpEntry(BootCatalogEntry *bc, int header_num, int entry_num,
 	switch (ValidationEntry->HeaderIndicator) {
 		case ValidationIndicator:
 			platform_id = ValidationEntry->PlatformId;
+			dumpValidationEntry(ValidationEntry);
 			break;
 		case SectionHeaderIndicator:
 		case FinalSectionHeaderIndicator:
 			platform_id = SectionHeaderEntry->PlatformId;
+			dumpSectionHeaderEntry(SectionHeaderEntry);
 			break;
 		default:
 			/* almost always x86 anyway -- if it's broken, it's
@@ -205,80 +286,84 @@ static int dumpEntry(BootCatalogEntry *bc, int header_num, int entry_num,
 		memcpy(&lba, &DefaultEntry->LoadLBA, sizeof(lba));
 		lba = iso731_to_cpu32(lba);
 		printf("\tLoad LBA: %d (0x%08x)\n", lba, lba);
+		*next_header_num = entry_num + 1;
 	} else {
-		BootCatalogSectionEntry *SectionEntry =
-			(BootCatalogSectionEntry *)&bc[entry_num];
+		int i;
 
-		printf("Boot Catalog Section Entry:\n");
-		switch (SectionEntry->BootIndicator) {
-			case NotBootable:
-				printf("\tEntry is not bootable\n");
-				break;
-			case Bootable:
-				printf("\tEntry is bootable\n");
-				break;
-			default:
-				printf("\tInvalid boot indicator\n");
-				break;
+		for (i = 0; i < SectionHeaderEntry->SectionEntryCount; i++) {
+			BootCatalogSectionEntry *SectionEntry =
+				(BootCatalogSectionEntry *)&bc[entry_num + i];
+
+			printf("Boot Catalog Section Entry:\n");
+			switch (SectionEntry->BootIndicator) {
+				case NotBootable:
+					printf("\tEntry is not bootable\n");
+					break;
+				case Bootable:
+					printf("\tEntry is bootable\n");
+					break;
+				default:
+					printf("\tInvalid boot indicator\n");
+					break;
+			}
+			printf("\tBoot Media emulation type: ");
+			switch (SectionEntry->BootMediaType) {
+				case NoEmulation:
+					printf("no emulation\n");
+					break;
+				case OneTwoDiskette:
+					printf("1.2MB floppy diskette emulation\n");
+					break;
+				case OneFourFourDiskette:
+					printf("1.44MB floppy diskette emulation\n");
+					break;
+				case TwoEightEightDiskette:
+					printf("2.88MB floppy diskette emulation\n");
+					break;
+				case HardDisk:
+					printf("hard disk emulation\n");
+					break;
+				default:
+					printf("invalid boot media emulation type\n");
+					break;
+			}
+
+			memcpy(&loadseg, &SectionEntry->LoadSegment, sizeof(loadseg));
+			loadseg = iso721_to_cpu16(loadseg);
+
+			switch (platform_id) {
+				case x86:
+					printf("\tMedia load segment: 0x%04x\n",
+						loadseg == 0 ? 0x7c0 : loadseg);
+					break;
+				case ppc:
+				case m68kmac:
+				case efi:
+					printf("\tMedia load address: %d (0x%04x)\n",
+						loadseg * 0x10, loadseg * 0x10);
+					break;
+				default:
+					printf("\tMedia load address: %d (0x%04x) (raw value)\n",
+						loadseg, loadseg);
+					break;
+			}
+
+			printf("\tSystem type: %d (0x%02x)\n", SectionEntry->SystemType,
+				SectionEntry->SystemType);
+
+			memcpy(&sectors, &SectionEntry->SectorCount, sizeof(sectors));
+#if 0			/* genisoimage doesn't actually convert this -- so it's actually in 
+			 * host byte order :(
+			 */
+			sectors = iso721_to_cpu16(sectors);
+#endif
+			printf("\tLoad Sectors: %d (0x%04x)\n", sectors, sectors);
+
+			memcpy(&lba, &SectionEntry->LoadLBA, sizeof(lba));
+			lba = iso731_to_cpu32(lba);
+			printf("\tLoad LBA: %d (0x%08x)\n", lba, lba);
 		}
-#if 0
-	printf("\tBoot Media emulation type: ");
-	switch (DefaultEntry->BootMediaType) {
-		case NoEmulation:
-			printf("no emulation\n");
-			break;
-		case OneTwoDiskette:
-			printf("1.2MB floppy diskette emulation\n");
-			break;
-		case OneFourFourDiskette:
-			printf("1.44MB floppy diskette emulation\n");
-			break;
-		case TwoEightEightDiskette:
-			printf("2.88MB floppy diskette emulation\n");
-			break;
-		case HardDisk:
-			printf("hard disk emulation\n");
-			break;
-		default:
-			printf("invalid boot media emulation type\n");
-			break;
-	}
-
-	memcpy(&loadseg, &DefaultEntry->LoadSegment, sizeof(loadseg));
-	loadseg = iso721_to_cpu16(loadseg);
-
-	switch (platform_id) {
-		case x86:
-			printf("\tMedia load segment: 0x%04x\n",
-				loadseg == 0 ? 0x7c0 : loadseg);
-			break;
-		case ppc:
-		case m68kmac:
-		case efi:
-			printf("\tMedia load address: %d (0x%04x)\n",
-				loadseg * 0x10, loadseg * 0x10);
-			break;
-		default:
-			printf("\tMedia load address: %d (0x%04x) (raw value)\n",
-				loadseg, loadseg);
-			break;
-	}
-
-	printf("\tSystem type: %d (0x%02x)\n", DefaultEntry->SystemType,
-		DefaultEntry->SystemType);
-
-	memcpy(&sectors, &DefaultEntry->SectorCount, sizeof(sectors));
-#if 0	/* genisoimage doesn't actually convert this -- so it's actually in 
-	 * host byte order :(
-	 */
-	sectors = iso721_to_cpu16(sectors);
-#endif
-	printf("\tLoad Sectors: %d (0x%04x)\n", sectors, sectors);
-
-	memcpy(&lba, &DefaultEntry->LoadLBA, sizeof(lba));
-	lba = iso731_to_cpu32(lba);
-	printf("\tLoad LBA: %d (0x%08x)\n", lba, lba);
-#endif
+		*next_header_num = entry_num + i;
 	}
 
 	return 0;
