@@ -313,11 +313,7 @@ static int dumpEntry(FILE *iso, BootCatalogEntry *bc, int header_num,
 			DefaultEntry->SystemType);
 
 		memcpy(&sectors, &DefaultEntry->SectorCount, sizeof(sectors));
-#if 0		/* genisoimage doesn't actually convert this -- so it's actually in 
-		 * host byte order :(
-		 */
 		sectors = iso721_to_cpu16(sectors);
-#endif
 		printf("\tLoad Sectors: %d (0x%04x)\n", sectors, sectors);
 
 		memcpy(&lba, &DefaultEntry->LoadLBA, sizeof(lba));
@@ -393,11 +389,7 @@ static int dumpEntry(FILE *iso, BootCatalogEntry *bc, int header_num,
 				SectionEntry->SystemType);
 
 			memcpy(&sectors, &SectionEntry->SectorCount, sizeof(sectors));
-#if 0			/* genisoimage doesn't actually convert this -- so it's actually in 
-			 * host byte order :(
-			 */
 			sectors = iso721_to_cpu16(sectors);
-#endif
 			printf("\tLoad Sectors: %d (0x%04x)\n", sectors, sectors);
 
 			memcpy(&lba, &SectionEntry->LoadLBA, sizeof(lba));
