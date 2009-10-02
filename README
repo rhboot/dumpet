@@ -1,0 +1,14 @@
+DumpET -- A tool for debugging El Torito boot images.
+      ____
+     /    \
+    /      \
+   /   __   \
+   |  /  \  |
+   |  \__/  |
+   \        /
+    \      /
+     \____/
+   
+You know, for kids.
+
+Author: Peter Jones <pjones@redhat.com>
