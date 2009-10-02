@@ -24,11 +24,11 @@
 typedef union {
 	Sector Raw;
 	struct {
-		char BootRecordIndicator;
+		uint8_t BootRecordIndicator;
 		char Iso9660[5];
-		char Version;
+		uint8_t Version;
 		char BootSystemId[32];
-		char Reserved0[32];
+		uint8_t Reserved0[32];
 		uint32_t BootCatalogLBA;
 	} __attribute__((packed));
 } BootRecordVolumeDescriptor;
@@ -65,13 +65,13 @@ typedef enum {
  * 00000010  00 00 00 00 00 00 00 00  00 00 00 00 aa 55 55 aa  |.............UU.|
  */
 typedef struct {
-	unsigned char HeaderIndicator;
-	char PlatformId;
-	char Reserved0[2];
+	uint8_t HeaderIndicator;
+	uint8_t PlatformId;
+	uint8_t Reserved0[2];
 	char Id[24];
 	uint16_t Checksum;
-	char FiveFive;
-	char AA;
+	uint8_t FiveFive;
+	uint8_t AA;
 } __attribute__((packed)) BootCatalogValidationEntry;
 
 /* A an Initial/Default Entry looks like this:
@@ -79,11 +79,11 @@ typedef struct {
  * 00000030  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
  */
 typedef struct {
-	unsigned char BootIndicator;
-	unsigned char BootMediaType;
+	uint8_t BootIndicator;
+	uint8_t BootMediaType;
 	uint16_t LoadSegment;
-	char SystemType;
-	char Reserved0;
+	uint8_t SystemType;
+	uint8_t Reserved0;
 	uint16_t SectorCount;
 	uint32_t LoadLBA;
 } BootCatalogDefaultEntry;
@@ -93,8 +93,8 @@ typedef struct {
  * 00000050  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
  */
 typedef struct {
-	char HeaderIndicator;
-	char PlatformId;
+	uint8_t HeaderIndicator;
+	uint8_t PlatformId;
 	uint16_t SectionEntryCount;
 	char Id[28];
 } BootCatalogSectionHeaderEntry;
@@ -109,19 +109,19 @@ typedef enum {
  * 00000070  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
  */
 typedef struct {
-	unsigned char BootIndicator;
-	unsigned char BootMediaType;
+	uint8_t BootIndicator;
+	uint8_t BootMediaType;
 	uint16_t LoadSegment;
-	unsigned char SystemType;
-	char Reserved0;
+	uint8_t SystemType;
+	uint8_t Reserved0;
 	uint16_t SectorCount;
 	uint32_t LoadLBA;
-	char SelectionCriteriaType;
-	char VendorUniqueSelectionCriteria[18];
+	uint8_t SelectionCriteriaType;
+	uint8_t VendorUniqueSelectionCriteria[18];
 } BootCatalogSectionEntry;
 
 typedef union {
-	char Raw[32];
+	uint8_t Raw[32];
 	BootCatalogValidationEntry ValidationEntry;
 	BootCatalogDefaultEntry DefaultEntry;
 	BootCatalogSectionHeaderEntry SectionHeaderEntry;
