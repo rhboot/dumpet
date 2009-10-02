@@ -12,3 +12,10 @@ DumpET -- A tool for debugging El Torito boot images.
 You know, for kids.
 
 Author: Peter Jones <pjones@redhat.com>
+
+Relevant documentation:
+	ISO 9660:1998 - actually the same as ECMA-119, which is freely available.
+	ECMA 119:
+		http://www.ecma-international.org/publications/standards/Ecma-119.htm
+	"El Torito" Bootable CD-ROM Format Specification Version 1.0:
+		http://www.phoenix.com/NR/rdonlyres/98D3219C-9CC9-4DF5-B496-A286D893E36A/0/specscdrom.pdf
