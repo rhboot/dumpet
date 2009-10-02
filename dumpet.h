@@ -30,7 +30,7 @@ static inline off_t get_sector_offset(int sector_number)
 	Sector sector;
 	return sector_number * sizeof(sector);
 }
-
+	
 static inline int read_sector(FILE *iso, int sector_number, Sector *sector)
 {
 	size_t n;
@@ -39,11 +39,27 @@ static inline int read_sector(FILE *iso, int sector_number, Sector *sector)
 
 	if (n != 1) {
 		int errnum = errno;
-		fprintf(stderr, "dumpet: Error reading iso: %m\n");
+		fprintf(stderr, "dumpet: Error reading image: %m\n");
 		errno = errnum;
 		return -errno;
 	}
 	return 0;
+}
+
+static inline int write_sector(FILE *iso, int sector_number, Sector *sector)
+{
+	size_t n;
+	fseek(iso, get_sector_offset(sector_number), SEEK_SET);
+	n = fwrite(sector, sizeof(*sector), 1, iso);
+
+	if (n != 1) {
+		int errnum = errno;
+		fprintf(stderr, "dumpet: Error writing image: %m\n");
+		errno = errnum;
+		return -errno;
+	}
+	return 0;
+
 }
 
 #endif /* DUMPET_H */

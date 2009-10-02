@@ -19,6 +19,7 @@
  * Author:  Peter Jones <pjones@redhat.com>
  */
 
+#define _GNU_SOURCE 1
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -183,9 +184,45 @@ static void dumpSectionHeaderEntry(BootCatalogSectionHeaderEntry *SectionHeaderE
 	printf("\tID: \"%s\"\n", id_string);
 }
 
-static int dumpEntry(BootCatalogEntry *bc, int header_num, int entry_num,
-			int *next_header_num, const char *filename,
-			int file_num)
+static int dumpBootImage(FILE *iso, uint32_t lba, uint32_t sectors,
+			const char *template, int filenum)
+{
+	int rc = 0;
+	int i;
+	FILE *image = NULL;
+	char *filename = NULL;
+	Sector sector;
+
+	asprintf(&filename, "%s.%d", template, filenum);
+	printf("Dumping boot image to \"%s\"\n", filename);
+	image = fopen(filename, "w+");
+	if (!image) {
+		int errnum;
+		fprintf(stderr, "Could not open \"%s\": %m\n", filename);
+		errnum = errno;
+		free(filename);
+		return -errnum;
+	}
+	free(filename);
+	for (i = 0; i<sectors; i++) {
+		rc = read_sector(iso, lba++, &sector);
+		if (rc < 0) {
+			fclose(image);
+			return rc;
+		}
+		rc = write_sector(image, i, &sector);
+		if (rc < 0) {
+			fclose(image);
+			return rc;
+		}
+	}
+	return 0;
+}
+
+static int dumpEntry(FILE *iso, BootCatalogEntry *bc, int header_num,
+			int entry_num, int *next_header_num,
+			const char *filename, int file_num,
+			int dumpDiskImage)
 {
 	BootCatalogValidationEntry *ValidationEntry =
 		(BootCatalogValidationEntry *)&bc[header_num];
@@ -286,6 +323,10 @@ static int dumpEntry(BootCatalogEntry *bc, int header_num, int entry_num,
 		memcpy(&lba, &DefaultEntry->LoadLBA, sizeof(lba));
 		lba = iso731_to_cpu32(lba);
 		printf("\tLoad LBA: %d (0x%08x)\n", lba, lba);
+
+		if (dumpDiskImage)
+			dumpBootImage(iso, lba, sectors, filename, file_num++);
+
 		*next_header_num = entry_num + 1;
 	} else {
 		int i;
@@ -362,6 +403,9 @@ static int dumpEntry(BootCatalogEntry *bc, int header_num, int entry_num,
 			memcpy(&lba, &SectionEntry->LoadLBA, sizeof(lba));
 			lba = iso731_to_cpu32(lba);
 			printf("\tLoad LBA: %d (0x%08x)\n", lba, lba);
+
+			if (dumpDiskImage)
+				dumpBootImage(iso, lba, sectors, filename, file_num++);
 		}
 		*next_header_num = entry_num + i;
 	}
@@ -369,7 +413,7 @@ static int dumpEntry(BootCatalogEntry *bc, int header_num, int entry_num,
 	return 0;
 }
 
-static int dumpet(const char *filename, FILE *iso)
+static int dumpet(const char *filename, FILE *iso, int dumpDiskImage)
 {
 	BootCatalog bc;
 	uint32_t bootCatLba;
@@ -386,8 +430,8 @@ static int dumpet(const char *filename, FILE *iso)
 
 	rc = checkValidationEntry(&bc.Catalog[0].ValidationEntry);
 
-	rc = dumpEntry(&bc.Catalog[0], next_header_num, next_header_num+1,
-			&next_header_num, filename, filenum++);
+	rc = dumpEntry(iso, &bc.Catalog[0], next_header_num, next_header_num+1,
+			&next_header_num, filename, filenum++, dumpDiskImage);
 
 	while (1) {
 		BootCatalogSectionHeaderEntry *SectionHeader =
@@ -395,8 +439,8 @@ static int dumpet(const char *filename, FILE *iso)
 
 		if (SectionHeader->HeaderIndicator == SectionHeaderIndicator ||
 				SectionHeader->HeaderIndicator == FinalSectionHeaderIndicator) {
-			rc = dumpEntry(&bc.Catalog[0], next_header_num, next_header_num+1,
-					&next_header_num, filename, filenum++);
+			rc = dumpEntry(iso, &bc.Catalog[0], next_header_num, next_header_num+1,
+					&next_header_num, filename, filenum++, dumpDiskImage);
 		} else {
 			break;
 		}
@@ -455,7 +499,7 @@ int main(int argc, char *argv[])
 		exit(2);
 	}
 
-	rc = dumpet(filename, iso);
+	rc = dumpet(filename, iso, dumpDiskImage);
 	
 	free(filename);
 	poptFreeContext(optCon);
