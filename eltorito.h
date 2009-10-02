@@ -86,6 +86,7 @@ typedef struct {
 	uint8_t Reserved0;
 	uint16_t SectorCount;
 	uint32_t LoadLBA;
+	char Reserved1[20];
 } BootCatalogDefaultEntry;
 
 /* An EFI Section Header Entry looks like this:

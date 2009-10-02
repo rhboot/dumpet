@@ -26,22 +26,24 @@
 #include <string.h>
 #include <unistd.h>
 #include <inttypes.h>
+#include <ctype.h>
 
 #include <popt.h>
 
 #include "dumpet.h"
 #include "endian.h"
 
+struct options {
+	int dumpDiskImage;
+	int dumpHex;
+};
+
 static uint32_t dump_boot_record(const char *filename, FILE *iso)
 {
 	BootRecordVolumeDescriptor br;
 	int rc;
-	char BootSystemId[32];
-	char *ElTorito = "EL TORITO SPECIFICATION";
+	char BootSystemId[32] = "EL TORITO SPECIFICATION";
 	uint32_t BootCatalogLBA;
-
-	memset(BootSystemId, '\0', sizeof(BootSystemId));
-	memcpy(BootSystemId, ElTorito, strlen(ElTorito)); 
 
 	rc = read_sector(iso, 17, (Sector *)&br);
 	if (rc < 0)
@@ -129,12 +131,38 @@ static void printPlatformId(uint16_t platformId)
 	}
 }
 
-static void dumpValidationEntry(BootCatalogValidationEntry *ValidationEntry)
+static void dumpHex(void *voiddata, ssize_t length)
+{
+	uint8_t *data = voiddata;
+	int i, j;
+	for (i = j = 0; i < length ; i++) {
+		if (i % 16 == 0) {
+			j = i;
+			printf("%08x  ", i);
+		}
+		printf("%2.2x ", data[i]);
+		if ((i+1) % 16 == 0) {
+			printf(" |");
+			for (; j <= i; j++) {
+				if (isalnum(data[j]))
+					printf("%c", data[j]);
+				else
+					printf(".");
+			}
+			printf("|\n");
+		}
+	}
+}
+
+static void dumpValidationEntry(BootCatalogValidationEntry *ValidationEntry, struct options *options)
 {
 	char id_string[25];
 	uint16_t csum;
 	
 	printf("Validation Entry:\n");
+
+	if (options->dumpHex)
+		dumpHex(ValidationEntry, sizeof(*ValidationEntry));
 
 	printf("\tHeader Indicator: 0x%02x (%s)\n",
 		ValidationEntry->HeaderIndicator,
@@ -156,11 +184,14 @@ static void dumpValidationEntry(BootCatalogValidationEntry *ValidationEntry)
 					    ValidationEntry->AA);
 }
 
-static void dumpSectionHeaderEntry(BootCatalogSectionHeaderEntry *SectionHeaderEntry)
+static void dumpSectionHeaderEntry(BootCatalogSectionHeaderEntry *SectionHeaderEntry, struct options *options)
 {
 	char id_string[29];
 
 	printf("Section Header Entry:\n");
+
+	if (options->dumpHex)
+		dumpHex(SectionHeaderEntry, sizeof(*SectionHeaderEntry));
 
 	printf("\tHeader Indicator: 0x%02x ", SectionHeaderEntry->HeaderIndicator);
 	switch (SectionHeaderEntry->HeaderIndicator) {
@@ -222,7 +253,7 @@ static int dumpBootImage(FILE *iso, uint32_t lba, uint32_t sectors,
 static int dumpEntry(FILE *iso, BootCatalogEntry *bc, int header_num,
 			int entry_num, int *next_header_num,
 			const char *filename, int file_num,
-			int dumpDiskImage)
+			struct options *options)
 {
 	BootCatalogValidationEntry *ValidationEntry =
 		(BootCatalogValidationEntry *)&bc[header_num];
@@ -236,12 +267,12 @@ static int dumpEntry(FILE *iso, BootCatalogEntry *bc, int header_num,
 	switch (ValidationEntry->HeaderIndicator) {
 		case ValidationIndicator:
 			platform_id = ValidationEntry->PlatformId;
-			dumpValidationEntry(ValidationEntry);
+			dumpValidationEntry(ValidationEntry, options);
 			break;
 		case SectionHeaderIndicator:
 		case FinalSectionHeaderIndicator:
 			platform_id = SectionHeaderEntry->PlatformId;
-			dumpSectionHeaderEntry(SectionHeaderEntry);
+			dumpSectionHeaderEntry(SectionHeaderEntry, options);
 			break;
 		default:
 			/* almost always x86 anyway -- if it's broken, it's
@@ -255,6 +286,10 @@ static int dumpEntry(FILE *iso, BootCatalogEntry *bc, int header_num,
 			(BootCatalogDefaultEntry *)&bc[entry_num];
 
 		printf("Boot Catalog Default Entry:\n");
+
+		if (options->dumpHex)
+			dumpHex(DefaultEntry, sizeof(*DefaultEntry));
+
 		switch (DefaultEntry->BootIndicator) {
 			case NotBootable:
 				printf("\tEntry is not bootable\n");
@@ -320,7 +355,7 @@ static int dumpEntry(FILE *iso, BootCatalogEntry *bc, int header_num,
 		lba = iso731_to_cpu32(lba);
 		printf("\tLoad LBA: %d (0x%08x)\n", lba, lba);
 
-		if (dumpDiskImage)
+		if (options->dumpDiskImage)
 			dumpBootImage(iso, lba, sectors, filename, file_num++);
 
 		*next_header_num = entry_num + 1;
@@ -332,6 +367,10 @@ static int dumpEntry(FILE *iso, BootCatalogEntry *bc, int header_num,
 				(BootCatalogSectionEntry *)&bc[entry_num + i];
 
 			printf("Boot Catalog Section Entry:\n");
+
+			if (options->dumpHex)
+				dumpHex(SectionEntry, sizeof(*SectionEntry));
+
 			switch (SectionEntry->BootIndicator) {
 				case NotBootable:
 					printf("\tEntry is not bootable\n");
@@ -396,7 +435,7 @@ static int dumpEntry(FILE *iso, BootCatalogEntry *bc, int header_num,
 			lba = iso731_to_cpu32(lba);
 			printf("\tLoad LBA: %d (0x%08x)\n", lba, lba);
 
-			if (dumpDiskImage)
+			if (options->dumpDiskImage)
 				dumpBootImage(iso, lba, sectors, filename, file_num++);
 		}
 		*next_header_num = entry_num + i;
@@ -405,7 +444,7 @@ static int dumpEntry(FILE *iso, BootCatalogEntry *bc, int header_num,
 	return 0;
 }
 
-static int dumpet(const char *filename, FILE *iso, int dumpDiskImage)
+static int dumpet(const char *filename, FILE *iso, struct options *options)
 {
 	BootCatalog bc;
 	uint32_t bootCatLba;
@@ -423,7 +462,7 @@ static int dumpet(const char *filename, FILE *iso, int dumpDiskImage)
 	rc = checkValidationEntry(&bc.Catalog[0].ValidationEntry);
 
 	rc = dumpEntry(iso, &bc.Catalog[0], next_header_num, next_header_num+1,
-			&next_header_num, filename, filenum++, dumpDiskImage);
+			&next_header_num, filename, filenum++, options);
 
 	while (1) {
 		BootCatalogSectionHeaderEntry *SectionHeader =
@@ -432,7 +471,7 @@ static int dumpet(const char *filename, FILE *iso, int dumpDiskImage)
 		if (SectionHeader->HeaderIndicator == SectionHeaderIndicator ||
 				SectionHeader->HeaderIndicator == FinalSectionHeaderIndicator) {
 			rc = dumpEntry(iso, &bc.Catalog[0], next_header_num, next_header_num+1,
-					&next_header_num, filename, filenum++, dumpDiskImage);
+					&next_header_num, filename, filenum++, options);
 		} else {
 			break;
 		}
@@ -452,20 +491,20 @@ static void usage(int error)
 	exit(error);
 }
 
-
 int main(int argc, char *argv[])
 {
 	FILE *iso = NULL;
 	int rc;
 
 	int help = 0;
-	int dumpDiskImage = 0;
+	struct options options = { 0, 0 };
 	char *filename = NULL;
 
 	poptContext optCon;
 	struct poptOption optionTable[] = {
 		{ "help", '?', POPT_ARG_NONE, &help, 0, NULL, "help"},
-		{ "dumpdisks", 'd', POPT_ARG_NONE, &dumpDiskImage, 0, NULL, "dump each El Torito boot image into a file"},
+		{ "dumpdisks", 'd', POPT_ARG_NONE, &options.dumpDiskImage, 0, NULL, "dump each El Torito boot image into a file"},
+		{ "dumphex", 'h', POPT_ARG_NONE, &options.dumpHex, 0, NULL, "dump each El Torito structure in hex"},
 		{ "iso", 'i', POPT_ARG_STRING, &filename, 0, NULL, "input ISO image"},
 		{0}
 	};
@@ -491,7 +530,7 @@ int main(int argc, char *argv[])
 		exit(2);
 	}
 
-	rc = dumpet(filename, iso, dumpDiskImage);
+	rc = dumpet(filename, iso, &options);
 	
 	free(filename);
 	poptFreeContext(optCon);
