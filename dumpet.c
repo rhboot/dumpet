@@ -224,7 +224,9 @@ static int dumpBootImage(FILE *iso, uint32_t lba, uint32_t sectors,
 	char *filename = NULL;
 	Sector sector;
 
-	asprintf(&filename, "%s.%d", template, filenum);
+	rc = asprintf(&filename, "%s.%d", template, filenum);
+	if (rc < 0)
+		return rc;
 	printf("Dumping boot image to \"%s\"\n", filename);
 	image = fopen(filename, "w+");
 	if (!image) {
