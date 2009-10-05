@@ -1,5 +1,5 @@
 
-VERSION=0.9
+VERSION=1.0
 GITVERSION=$(shell [ -d .git ] && git rev-list  --abbrev-commit  -n 1 HEAD  |cut -b 1-8)
 
 all : dumpet
