@@ -1,14 +1,16 @@
 
-VERSION=1.0
+VERSION=1.1
 GITVERSION=$(shell [ -d .git ] && git rev-list  --abbrev-commit  -n 1 HEAD  |cut -b 1-8)
+
+CFLAGS:=-g3 -O2 -Wall -Werror
 
 all : dumpet
 
 dumpet : dumpet.o
-	$(CC) -g3 -O2 -Wall -Werror -o $@ $^ -lpopt
+	$(CC) $(CFLAGS) -o $@ $^ -lpopt
 
 dumpet.o : dumpet.c dumpet.h iso9660.h eltorito.h endian.h
-	$(CC) -g3 -O2 -Wall -Werror -c -o $@ $<
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 clean : 
 	@rm -vf *.o dumpet
