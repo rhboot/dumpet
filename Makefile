@@ -1,4 +1,7 @@
 
+VERSION=0.9
+GITVERSION=$(shell [ -d .git ] && git rev-list  --abbrev-commit  -n 1 HEAD  |cut -b 1-8)
+
 all : dumpet
 
 dumpet : dumpet.o
@@ -12,5 +15,20 @@ clean :
 
 install : all
 	install -m 0755 dumpet ${DESTDIR}/usr/bin/dumpet
+
+test-archive: clean all dumpet-$(VERSION)-$(GITVERSION).tar.bz2
+
+archive: clean all dumpet-$(VERSION).tar.bz2
+
+dist: tag archive
+
+tag:
+	git tag $(VERSION) refs/heads/master
+
+dumpet-$(VERSION).tar.bz2:
+	git archive --format=tar $(VERSION) --prefix=dumpet-$(VERSION)/ |bzip2 > dumpet-$(VERSION).tar.bz2
+
+dumpet-$(VERSION)-$(GITVERSION).tar.bz2:
+	git archive --format=tar HEAD --prefix=dumpet-$(VERSION)-$(GITVERSION)/ |bzip2 > dumpet-$(VERSION)-$(GITVERSION).tar.bz2
 
 .PHONY : all install clean
