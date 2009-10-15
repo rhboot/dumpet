@@ -331,8 +331,12 @@ static int dumpEntry(FILE *iso, BootCatalogEntry *bc, int header_num,
 
 		switch (platform_id) {
 			case x86:
-				printf("\tMedia load segment: 0x%04x\n",
-					loadseg == 0 ? 0x7c0 : loadseg);
+				printf("\tMedia load segment: ");
+				if (loadseg == 0)
+					printf("0x0 (0000:7c00)\n");
+				else
+					printf("0x%04x (%04x:0000)\n", loadseg,
+						loadseg);
 				break;
 			case ppc:
 			case m68kmac:
