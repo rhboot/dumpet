@@ -1,5 +1,5 @@
 
-VERSION=1.1
+VERSION=2.0
 GITVERSION=$(shell [ -d .git ] && git rev-list  --abbrev-commit  -n 1 HEAD  |cut -b 1-8)
 
 CFLAGS:=-g3 -O2 -Wall -Werror
