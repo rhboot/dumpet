@@ -3,11 +3,16 @@ VERSION=1.1
 GITVERSION=$(shell [ -d .git ] && git rev-list  --abbrev-commit  -n 1 HEAD  |cut -b 1-8)
 
 CFLAGS:=-g3 -O2 -Wall -Werror
+LFLAGS:=
+CC:=gcc
+
+CFLAGS += $(shell pkg-config --cflags libxml-2.0)
+LFLAGS += -lpopt $(shell pkg-config --libs libxml-2.0)
 
 all : dumpet
 
 dumpet : dumpet.o
-	$(CC) $(CFLAGS) -o $@ $^ -lpopt
+	$(CC) $(CFLAGS) -o $@ $^ $(LFLAGS)
 
 dumpet.o : dumpet.c dumpet.h iso9660.h eltorito.h endian.h
 	$(CC) $(CFLAGS) -c -o $@ $<
