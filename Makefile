@@ -38,4 +38,7 @@ dumpet-$(VERSION).tar.bz2:
 dumpet-$(VERSION)-$(GITVERSION).tar.bz2:
 	git archive --format=tar HEAD --prefix=dumpet-$(VERSION)-$(GITVERSION)/ |bzip2 > dumpet-$(VERSION)-$(GITVERSION).tar.bz2
 
+upload: dist
+	@scp dumpet-$(VERSION).tar.bz2 fedorahosted.org:dumpet
+
 .PHONY : all install clean
