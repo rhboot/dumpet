@@ -21,7 +21,7 @@ clean :
 	@rm -vf *.o dumpet
 
 install : all
-	install -m 0755 dumpet ${DESTDIR}/usr/bin/dumpet
+	install -D -m 0755 dumpet ${DESTDIR}/usr/bin/dumpet
 
 test-archive: clean all dumpet-$(VERSION)-$(GITVERSION).tar.bz2
 
