@@ -742,7 +742,7 @@ static void usage(int error)
 	FILE *outfile = error ? stderr : stdout;
 
 	fprintf(outfile, "usage: dumpet --help\n"
-	                 "       dumpet -i <file> [-d]\n");
+	                 "       dumpet -i <file> [-d] [-h|-x]\n");
 	exit(error);
 }
 
