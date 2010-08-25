@@ -1,0 +1,42 @@
+.Dd August 25, 2010
+.Dt DUMPET 1
+.Sh NAME
+.Nm dumpet
+.Nd dump information about bootable CDs and other similar formats
+.Sh SYNOPSIS
+.Nm
+.Fl Fl iso Ar image
+.Op Fl Fl dumpdisks
+.Op Fl Fl dumphex Ns | Ns Fl Fl xml
+.Sh DESCRIPTION
+.Nm
+is a tool for debugging El Torito boot images.
+.Pp
+The following options are available:
+.Bl -tag -width 4n
+.It Fl ? , Fl Fl help
+Display help information.
+.It Fl i , Fl Fl iso Ar image
+The file name of the input ISO image.
+.It Fl d , Fl Fl dumpdisks
+Dump each El Torito boot image into a file.
+If
+.Fl Fl xml
+is not given, the files will be named
+.Ar image Ns \&.1 ,
+.Ar image Ns \&.2 ,
+etc. in sequence.
+Otherwise,
+.Li BootImage
+tags will be added to the output XML document with the content of each
+boot image in hexadecimal.
+.It Fl h , Fl Fl dumphex
+Dump each El Torito structure in hexadecimal.
+This option has no effect if
+.Fl Fl xml
+is given.
+.It Fl x , Fl Fl xml
+Dump the El Torito structure to standard output as an XML document.
+.El
+.Sh AUTHORS
+.An "Peter Jones" Aq pjones@redhat.com
