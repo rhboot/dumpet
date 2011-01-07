@@ -1,4 +1,5 @@
 TODO:
 - Support extended section entries.  AFAIK, these have never been seen in
   the wild.
+- Support Apple blessed images.
 - Support NeXT blessed images.

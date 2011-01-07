@@ -2,7 +2,7 @@
 VERSION=2.1
 GITVERSION=$(shell [ -d .git ] && git rev-list  --abbrev-commit  -n 1 HEAD  |cut -b 1-8)
 
-CFLAGS:=-g3 -O2 -Wall -Werror
+CFLAGS:=-g3 -O2 -Wall -Werror --std=gnu99
 LFLAGS:=
 CC:=gcc
 
@@ -11,7 +11,7 @@ LFLAGS += -lpopt $(shell pkg-config --libs libxml-2.0)
 
 all : dumpet
 
-dumpet : dumpet.o
+dumpet : dumpet.o applepart.o
 	$(CC) $(CFLAGS) -o $@ $^ $(LFLAGS)
 
 dumpet.o : dumpet.c dumpet.h iso9660.h eltorito.h endian.h

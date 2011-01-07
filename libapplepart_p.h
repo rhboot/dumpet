@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 Red Hat, Inc.
+ * Copyright 2011 Red Hat, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,14 +21,14 @@
 
 #include "libapplepart.h"
 
-struct AppleDiskLabel {
-	MacDiskLabel RawLabel;	
-	int numberPartitions;
-	AppleDiskPartition Partitions[];
-};
-
 struct AppleDiskPartition {
 	AppleDiskLabel *Label;
+	MacPartitionEntry RawPartEntry; /* always stored in big endian */
+};
+
+struct AppleDiskLabel {
+	MacDiskLabel RawLabel; /* always stored in big endian */
+	AppleDiskPartition Partitions[];
 };
 
 #endif /* LIBAPPLEPART_PRIVATE_H */
