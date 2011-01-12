@@ -19,8 +19,6 @@
 #ifndef LIBAPPLEPART_H
 #define LIBAPPLEPART_H
 
-#include "applepart.h"
-
 struct AppleDiskLabel;
 typedef struct AppleDiskLabel AppleDiskLabel;
 struct AppleDiskPartition;

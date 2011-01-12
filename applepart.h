@@ -19,6 +19,8 @@
 #ifndef APPLEPART_H
 #define APPLEPART_H
 
+#include "libapplepart.h"
+
 /* This format is documented (slightly) at:
  * http://www.opensource.apple.com/source/IOStorageFamily/IOStorageFamily-116.1.20/IOApplePartitionScheme.h
  * All fields are big endian
@@ -79,6 +81,18 @@ typedef struct {
 	DriverDescriptorMapEntry DriverMap[8];
 	uint8_t Reserved1[430];
 } __attribute__((packed)) MacDiskLabel;
+
+struct AppleDiskPartition {
+	AppleDiskLabel *Label;
+	MacPartitionEntry RawPartEntry; /* always stored in big endian */
+};
+
+struct AppleDiskLabel {
+	off_t DiskLocation;
+	int fd;
+	MacDiskLabel RawLabel; /* always stored in big endian */
+	AppleDiskPartition Partitions[];
+};
 
 #endif /* APPLEPART_H */
 /* vim:set shiftwidth=8 softtabstop=8: */

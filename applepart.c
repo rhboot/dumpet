@@ -23,8 +23,7 @@
 #include <string.h>
 #include <errno.h>
 
-#include "libapplepart.h"
-#include "libapplepart_p.h"
+#include "applepart.h"
 #include "endian.h"
 
 #define reterr(err) ({errno = err; return (((err) == 0) ? 0 : -1);})
