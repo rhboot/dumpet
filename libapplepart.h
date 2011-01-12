@@ -26,6 +26,8 @@ typedef struct AppleDiskPartition AppleDiskPartition;
 
 extern AppleDiskLabel *adl_new(void);
 extern AppleDiskLabel *adl_read(int fd);
+extern void _adl_free(AppleDiskLabel **adlp);
+#define adl_free(adl) _adl_free(&(adl))
 
 /* label accessors */
 extern int adl_set_block_size(AppleDiskLabel *adl, uint16_t blocksize);

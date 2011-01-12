@@ -17,16 +17,48 @@
  * Author:  Peter Jones <pjones@redhat.com>
  */
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 #include <errno.h>
 
 #include "applepart.h"
 #include "endian.h"
 
-#define reterr(err) ({errno = err; return (((err) == 0) ? 0 : -1);})
+#define reterr(err) ({				\
+		errno = err;			\
+		return (((err) == 0) ? 0 : -1);	\
+	})
+
+#define save_errno(unsafe_code)		({		\
+		typeof(errno) _errno_tmp = errno;	\
+		unsafe_code;				\
+		errno = _errno_tmp;			\
+	})
+
+static int adl_priv_read_partition(AppleDiskLabel *adl, int part);
+static size_t new_adl_size(int nentries);
+static size_t adl_size(AppleDiskLabel *adl);
+static inline off_t adl_priv_lseek(AppleDiskLabel *adl, off_t offset,
+				   int whence);
+static int adl_priv_get_num_partitions(AppleDiskLabel *adl);
+static int partnum_ok(AppleDiskLabel *adl, int partnum);
+static int pblock_in_use(AppleDiskLabel *adl, int partnum, uint32_t block);
+static int numblocks_ok(AppleDiskLabel *adl, int partnum, int numblocks);
+static int adl_priv_set_partition_pblock_start(AppleDiskLabel *adl, int partnum,
+					       uint32_t block);
+static int adl_priv_get_partition_pblock_start(AppleDiskLabel *adl, int partnum,
+					       uint32_t *block);
+static int adl_priv_set_partition_blocks(AppleDiskLabel *adl, int partnum,
+					 uint32_t blocks);
+static int adl_priv_get_partition_blocks(AppleDiskLabel *adl, int partnum,
+					 uint32_t *blocks);
+static int adl_priv_read_partition(AppleDiskLabel *adl, int part);
 
 static size_t new_adl_size(int nentries)
 {
@@ -34,7 +66,6 @@ static size_t new_adl_size(int nentries)
 	return sizeof(*adl) + nentries * sizeof(AppleDiskPartition);
 }
 
-#if 0
 static size_t adl_size(AppleDiskLabel *adl)
 {
 	uint32_t entries;
@@ -42,7 +73,36 @@ static size_t adl_size(AppleDiskLabel *adl)
 	entries = be32_to_cpu(adl->Partitions[0].RawPartEntry.MapEntries);
 	return sizeof(*adl) + entries * sizeof(AppleDiskPartition);
 }
-#endif
+
+static inline off_t adl_priv_lseek(AppleDiskLabel *adl, off_t offset,int whence)
+{
+	if (whence == SEEK_SET) {
+		off_t ret;
+		ret = lseek(adl->fd, adl->DiskLocation + offset, whence);
+		ret -= adl->DiskLocation;
+		return ret;
+	}
+	off_t current = lseek(adl->fd, 0, SEEK_CUR);
+
+	if (whence == SEEK_CUR) {
+		if (current + offset < adl->DiskLocation) {
+			errno = EINVAL;
+			return -1;
+		}
+	} else if (whence == SEEK_END) {
+		off_t end = lseek(adl->fd, 0, SEEK_END);
+		if (end + offset < adl->DiskLocation) {
+			lseek(adl->fd, current, SEEK_SET);
+			errno = EINVAL;
+			return -1;
+		}
+	} else {
+		errno = EINVAL;
+		return -1;
+	}
+
+	return lseek(adl->fd, offset, whence);
+}
 
 int adl_set_block_size(AppleDiskLabel *adl, uint16_t blocksize)
 {
@@ -196,7 +256,7 @@ AppleDiskLabel *adl_new(void)
 	if (!adl)
 		return NULL;
 
-	magic = MAC_LABEL_MAGIC;
+	magic = cpu_to_be16(MAC_LABEL_MAGIC);
 	memmove(&adl->RawLabel.Signature, &magic, sizeof(magic));
 
 	/* set up some handy defaults for the disk until we're told
@@ -209,7 +269,7 @@ AppleDiskLabel *adl_new(void)
 
 	adl->Partitions[0].Label = adl;
 	pe = &adl->Partitions[0].RawPartEntry;
-	magic = MAC_PARTITION_MAGIC;
+	magic = cpu_to_be16(MAC_PARTITION_MAGIC);
 	memmove(&pe->Signature, &magic, sizeof(magic));
 	pe->MapEntries = cpu_to_be32(1);
 	adl_priv_set_partition_pblock_start(adl, 0, 1);
@@ -221,14 +281,104 @@ AppleDiskLabel *adl_new(void)
 	return adl;
 }
 
+static int adl_priv_read_partition(AppleDiskLabel *adl, int part)
+{
+	off_t offset;
+	ssize_t bytes;
+	uint16_t bs = be16_to_cpu(adl->RawLabel.BlockSize);
+	MacPartitionEntry *entry = &adl->Partitions[part].RawPartEntry;
+	
+	offset = adl_priv_lseek(adl, (part+1) * bs, SEEK_SET);
+	if (offset < 0)
+		return -1;
+
+	/* XXX PJFIX handle short reads correctly */
+	bytes = read(adl->fd, entry, sizeof (*entry));
+	if (bytes < 0)
+		return -1;
+
+	uint16_t magic = cpu_to_be16(MAC_PARTITION_MAGIC);
+	if (memcmp(&entry->Signature, &magic, sizeof(magic))) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	return 0;
+}
+
 AppleDiskLabel *adl_read(int fd)
 {
-	AppleDiskLabel *adl = adl_new();
+	int rc;
 
+	AppleDiskLabel *adl = adl_new();
 	if (!adl)
 		return NULL;
 
+	adl->fd = fd;
+	adl->DiskLocation = lseek(fd, 0, SEEK_CUR);
+	/* XXX PJFIX handle short reads correctly */
+	rc = read(fd, &adl->RawLabel, sizeof (adl->RawLabel));
+	if (rc < 0) {
+		save_errno(adl_free(adl));
+		return NULL;
+	}
+
+	uint16_t magic = cpu_to_be16(MAC_LABEL_MAGIC);
+	if (memcmp(&adl->RawLabel.Signature, &magic, sizeof(magic))) {
+		errno = EINVAL;
+bad:
+		adl_free(adl);
+		return NULL;
+	}
+
+	errno = EINVAL;
+	uint16_t bs = be32_to_cpu(adl->RawLabel.BlockSize);
+	if (bs % 512 != 0)
+		goto bad;
+
+	rc = adl_priv_read_partition(adl, 0);
+	if (rc < 0)
+		goto bad;
+
+	MacPartitionEntry *entry = &adl->Partitions[0].RawPartEntry;
+	char buf[32];
+	memset(buf, '\0', 32);
+	memcpy(buf, "Apple", 5);
+
+	errno = EINVAL;
+	if (memcmp(entry->Name, buf, 32))
+		goto bad;
+
+	memcpy(buf, "Apple_partition_map", 19);
+	if (memcmp(entry->Type, buf, 32))
+		goto bad;
+
+
+	uint32_t nparts = be32_to_cpu(entry->MapEntries);
+	if (nparts < 1)
+		goto bad;
+
+	AppleDiskLabel *new = realloc(adl, adl_size(adl));
+	if (!new)
+		goto bad;
+	adl = new;
+
+	for (int i = 1; i < nparts; i++) {
+		if (adl_priv_read_partition(adl, i) < 0)
+			goto bad;
+	}
+
+	errno = 0;
 	return adl;
+}
+
+void _adl_free(AppleDiskLabel **adlp)
+{
+	if (adlp && *adlp) {
+		AppleDiskLabel *adl = *adlp;
+		free(adl);
+		*adlp = NULL;
+	}
 }
 
 /* vim:set shiftwidth=8 softtabstop=8: */
