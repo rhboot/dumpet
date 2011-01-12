@@ -9,10 +9,16 @@ CC:=gcc
 CFLAGS += $(shell pkg-config --cflags libxml-2.0)
 LFLAGS += -lpopt $(shell pkg-config --libs libxml-2.0)
 
-all : dumpet
+all : dumpet test
+
+test : apmtest
+	valgrind --tool=memcheck ./apmtest apple.mba31.restore.firstmeg.iso 
 
 dumpet : dumpet.o applepart.o
 	$(CC) $(CFLAGS) -o $@ $^ $(LFLAGS)
+
+apmtest : applepart.c
+	$(CC) $(CFLAGS) -DTEST_DUMPER -o $@ $^ $(LFLAGS)
 
 dumpet.o : dumpet.c dumpet.h iso9660.h eltorito.h endian.h
 	$(CC) $(CFLAGS) -c -o $@ $<

@@ -381,4 +381,46 @@ void _adl_free(AppleDiskLabel **adlp)
 	}
 }
 
+#ifdef TEST_DUMPER
+static void usage(int retcode) __attribute__((noreturn));
+static void usage(int retcode)
+{
+	FILE *f = retcode ? stderr : stdout;
+
+	fprintf(f, "Usage: apmtest <inputfile>\n");
+	exit(retcode);
+}
+
+int main(int argc, char *argv[])
+{
+	int fd;
+	AppleDiskLabel *adl = NULL;
+
+	if (argc != 2)
+		usage(1);
+	if (!strcmp(argv[1], "--help") ||
+			!strcmp(argv[1], "--usage") ||
+			!strcmp(argv[1], "-?") ||
+			!strcmp(argv[1], "-h"))
+		usage(0);
+
+	fd = open(argv[1], O_RDONLY);
+	if (!fd) {
+		fprintf(stderr, "apmtest: cannot open \"%s\": %m\n", argv[1]);
+		exit(2);
+	}
+
+	adl = adl_read(fd);
+	save_errno(close(fd));
+	if (!adl) {
+		fprintf(stderr, "apmtest: cannot parse \"%s\": %m\n", argv[1]);
+		exit(3);
+	}
+
+
+	adl_free(adl);
+	return 0;
+}
+#endif
+
 /* vim:set shiftwidth=8 softtabstop=8: */
