@@ -294,14 +294,18 @@ static int adl_priv_read_partition(AppleDiskLabel *adl, int part)
 
 	/* XXX PJFIX handle short reads correctly */
 	bytes = read(adl->fd, entry, sizeof (*entry));
-	if (bytes < 0)
+	if (bytes < 0) {
+		memset(entry, '\0', sizeof(*entry));
 		return -1;
+	}
 
 	uint16_t magic = cpu_to_be16(MAC_PARTITION_MAGIC);
 	if (memcmp(&entry->Signature, &magic, sizeof(magic))) {
+		memset(entry, '\0', sizeof(*entry));
 		errno = EINVAL;
 		return -1;
 	}
+	adl->Partitions[part].Label = adl;
 
 	return 0;
 }
@@ -352,7 +356,6 @@ bad:
 	memcpy(buf, "Apple_partition_map", 19);
 	if (memcmp(entry->Type, buf, 32))
 		goto bad;
-
 
 	uint32_t nparts = be32_to_cpu(entry->MapEntries);
 	if (nparts < 1)
