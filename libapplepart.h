@@ -64,5 +64,8 @@ extern int adl_set_partition_flags(AppleDiskLabel *adl, int partnum,
 extern int adl_get_partition_flags(AppleDiskLabel *adl, int partnum,
 				   uint32_t *flags);
 
+extern int _adl_add_partition(AppleDiskLabel **adl);
+#define adl_add_partition(adl) _adl_add_partition(&(adl))
+
 #endif /* LIBAPPLEPART_H */
 /* vim:set shiftwidth=8 softtabstop=8: */

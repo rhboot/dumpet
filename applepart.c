@@ -394,6 +394,36 @@ bad:
 	return adl;
 }
 
+int _adl_add_partition(AppleDiskLabel **adl)
+{
+	int partnum = adl_priv_get_num_partitions(adl);
+	uint32_t new_num_parts = partnum + 1;
+	AppleDiskLabel *newadl;
+	AppleDiskPartition *adp;
+	uint16_t magic;
+
+	newadl = realloc(adl, new_adl_size(new_num_parts));
+	if (!newadl)
+		return -1;
+
+	adl = newadl;
+	adp = adl->Partitions[partnum];
+
+	memset(adp, '\0',sizeof(*adp));
+	adp->Label = adl;
+	magic = cpu_to_be16(MAC_PARTITION_MAGIC);
+
+	uint32_t new_num_parts_be = cpu_to_be32(new_num_parts);
+	for (int i = 0; i < new_num_parts; i++)
+		adl->Partitions[i].MapEntries = new_num_parts_be;
+	
+	adl_priv_set_partition_blocks(adl, 0,
+				      sizeof(MacPartitionEntry) * (partnum+1) /
+				      adl_get_block_size(adl));
+
+	return partnum - 1;
+}
+
 void _adl_free(AppleDiskLabel **adlp)
 {
 	if (adlp && *adlp) {
