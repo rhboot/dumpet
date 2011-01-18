@@ -246,6 +246,25 @@ int adl_get_partition_blocks(AppleDiskLabel *adl, int partnum,
 	return adl_priv_get_partition_blocks(adl, partnum + 1, blocks);
 }
 
+
+int adl_set_partition_flags(AppleDiskLabel *adl, int partnum,
+			    uint32_t flags)
+{
+	if (!partnum_ok(adl, partnum))
+		reterr(EINVAL);
+	adl->Partitions[partnum].RawPartEntry.Flags = cpu_to_be32(flags);
+	return 0;
+}
+
+int adl_get_partition_flags(AppleDiskLabel *adl, int partnum,
+			    uint32_t *flags)
+{
+	if (!partnum_ok(adl, partnum))
+		reterr(EINVAL);
+	*flags = be32_to_cpu(adl->Partitions[partnum].RawPartEntry.Flags);
+	return 0;
+}
+
 AppleDiskLabel *adl_new(void)
 {
 	AppleDiskLabel *adl = NULL;

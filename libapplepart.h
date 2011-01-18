@@ -43,10 +43,26 @@ extern int adl_set_partition_pblock_start(AppleDiskLabel *adl, int partnum,
 					  uint32_t block);
 extern int adl_get_partition_pblock_start(AppleDiskLabel *adl, int partnum,
 					  uint32_t *block);
+
 extern int adl_set_partition_blocks(AppleDiskLabel *adl, int partnum,
 				    uint32_t blocks);
 extern int adl_get_partition_blocks(AppleDiskLabel *adl, int partnum,
 				    uint32_t *blocks);
+
+#define MAC_PARTITION_VALID		0x1
+#define MAC_PARTITION_ALLOCATED		0x2
+#define MAC_PARTITION_IN_USE		0x4
+#define MAC_PARTITION_BOOTABLE		0x8
+#define MAC_PARTITION_READABLE		0x10
+#define MAC_PARTITION_WRITABLE		0x20
+#define MAC_PARTITION_OS_PIC_CODE	0x40
+#define MAC_PARTITION_OS_SPECIFIC_2	0x80
+#define MAC_PARTITION_OS_SPECIFIC_1	0x100
+#define MAC_PARTITION_RESERVED_BITS	0xFFFFFE00
+extern int adl_set_partition_flags(AppleDiskLabel *adl, int partnum,
+				   uint32_t flags);
+extern int adl_get_partition_flags(AppleDiskLabel *adl, int partnum,
+				   uint32_t *flags);
 
 #endif /* LIBAPPLEPART_H */
 /* vim:set shiftwidth=8 softtabstop=8: */
