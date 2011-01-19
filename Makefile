@@ -25,7 +25,7 @@ dumpet.o : dumpet.c dumpet.h iso9660.h eltorito.h endian.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 clean : 
-	@rm -vf *.o dumpet
+	@rm -vf *.o dumpet apmtest
 
 install : all
 	install -D -m 0755 dumpet ${DESTDIR}/usr/bin/dumpet
