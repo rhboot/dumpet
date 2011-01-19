@@ -444,12 +444,52 @@ static void usage(int retcode)
 	exit(retcode);
 }
 
-int main(int argc, char *argv[])
+static int readtest(char *filename)
 {
 	int fd;
 	AppleDiskLabel *adl = NULL;
 
-	if (argc != 2)
+	fd = open(filename, O_RDONLY);
+	if (!fd) {
+		fprintf(stderr, "apmtest: cannot open \"%s\": %m\n", filename);
+		return 2;
+	}
+
+	adl = adl_read(fd);
+	save_errno(close(fd));
+	if (!adl) {
+		fprintf(stderr, "apmtest: cannot parse \"%s\": %m\n", filename);
+		return 3;
+	}
+
+	int rc = 0;
+	for (int i = 0; i < adl_get_num_partitions(adl); i++) {
+		uint32_t startblock;
+		uint32_t blocks;
+
+		if (adl_get_partition_pblock_start(adl, i, &startblock) < 0) {
+			fprintf(stderr, "Failed reading partition %d: %m\n", i);
+			rc = 4;
+			break;
+		}
+		if (adl_get_partition_blocks(adl, i, &blocks) < 0) {
+			fprintf(stderr, "Failed reading partition %d: %m\n", i);
+			rc = 5;
+			break;
+		}
+		printf("Partition %d at 0x%x uses %d block%c\n", i, startblock,
+			blocks, blocks == 1 ? '\0' : 's');
+	}
+
+	adl_free(adl);
+	return rc;
+}
+
+int main(int argc, char *argv[])
+{
+	int rc = 0;
+
+	if (argc < 2)
 		usage(1);
 	if (!strcmp(argv[1], "--help") ||
 			!strcmp(argv[1], "--usage") ||
@@ -457,22 +497,12 @@ int main(int argc, char *argv[])
 			!strcmp(argv[1], "-h"))
 		usage(0);
 
-	fd = open(argv[1], O_RDONLY);
-	if (!fd) {
-		fprintf(stderr, "apmtest: cannot open \"%s\": %m\n", argv[1]);
-		exit(2);
+	if (!strcmp(argv[1], "-r") || !strcmp(argv[1], "--read")) {
+		if (argc != 3)
+			usage(1);
+		rc = readtest(argv[2]);
 	}
-
-	adl = adl_read(fd);
-	save_errno(close(fd));
-	if (!adl) {
-		fprintf(stderr, "apmtest: cannot parse \"%s\": %m\n", argv[1]);
-		exit(3);
-	}
-
-
-	adl_free(adl);
-	return 0;
+	return rc;
 }
 #endif
 

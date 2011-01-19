@@ -13,7 +13,7 @@ LFLAGS += -lpopt $(shell pkg-config --libs libxml-2.0)
 all : dumpet test
 
 test : apmtest
-	valgrind --tool=$(TOOL) ./apmtest apple.mba31.restore.firstmeg.iso 
+	valgrind --tool=$(TOOL) ./apmtest -r apple.mba31.restore.firstmeg.iso 
 
 dumpet : dumpet.o applepart.o
 	$(CC) $(CFLAGS) -o $@ $^ $(LFLAGS)
