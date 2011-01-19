@@ -260,11 +260,17 @@ make_public_part_getters(flags, uint32_t, flags);
 
 int adl_priv_set_partition_name(AppleDiskLabel *adl, int partnum, char *name)
 {
+	if (!partnum_ok(adl, partnum))
+		reterr(EINVAL);
+	memcpy(adl->Partitions[partnum].RawPartEntry.Name, name, 32);
 	return 0;
 }
 
 int adl_priv_get_partition_name(AppleDiskLabel *adl, int partnum, char **name)
 {
+	if (!partnum_ok(adl, partnum))
+		reterr(EINVAL);
+	memcpy(*name, adl->Partitions[partnum].RawPartEntry.Name, 32);
 	return 0;
 }
 
@@ -272,11 +278,17 @@ make_public_part_getters(name, char *, name);
 
 int adl_priv_set_partition_type(AppleDiskLabel *adl, int partnum, char *type)
 {
+	if (!partnum_ok(adl, partnum))
+		reterr(EINVAL);
+	memcpy(adl->Partitions[partnum].RawPartEntry.Type, type, 32);
 	return 0;
 }
 
 int adl_priv_get_partition_type(AppleDiskLabel *adl, int partnum, char **type)
 {
+	if (!partnum_ok(adl, partnum))
+		reterr(EINVAL);
+	memcpy(*type, adl->Partitions[partnum].RawPartEntry.Type, 32);
 	return 0;
 }
 
@@ -488,6 +500,11 @@ static int readtest(char *filename)
 	for (int i = 0; i < adl_get_num_partitions(adl); i++) {
 		uint32_t startblock;
 		uint32_t blocks;
+		char *name, *type;
+
+		name = alloca(33 * sizeof(char));
+		type = alloca(33 * sizeof(char));
+		name[32] = type[32] = '\0';
 
 		if (adl_get_partition_pblock_start(adl, i, &startblock) < 0) {
 			fprintf(stderr, "Failed reading partition %d: %m\n", i);
@@ -499,8 +516,19 @@ static int readtest(char *filename)
 			rc = 5;
 			break;
 		}
-		printf(" partition %d at 0x%x uses %d block%c\n", i, startblock,
-			blocks, blocks == 1 ? '\0' : 's');
+		if (adl_get_partition_name(adl, i, &name) < 0) {
+			fprintf(stderr, "Failed reading partition %d: %m\n", i);
+			rc = 6;
+			break;
+		}
+		if (adl_get_partition_type(adl, i, &type) < 0) {
+			fprintf(stderr, "Failed reading partition %d: %m\n", i);
+			rc = 7;
+			break;
+		}
+		printf(" partition \"%s\" of type \"%s\" at 0x%x "
+		       "uses %d block%c\n", name, type, startblock, blocks,
+		       blocks == 1 ? '\0' : 's');
 	}
 
 	adl_free(adl);
