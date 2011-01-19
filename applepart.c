@@ -171,6 +171,18 @@ static int numblocks_ok(AppleDiskLabel *adl, int partnum, int numblocks)
 	return !pblock_in_use(adl, partnum, start + numblocks);
 }
 
+#define make_public_part_getters(name, argtype, argname)			\
+int adl_set_partition_ ## name (AppleDiskLabel *adl, int partnum,	\
+				argtype argname)			\
+{									\
+	return adl_priv_set_partition_ ## name (adl, partnum, argname);	\
+}									\
+int adl_get_partition_ ## name (AppleDiskLabel *adl, int partnum,	\
+				argtype * argname)			\
+{									\
+	return adl_priv_get_partition_ ## name (adl, partnum, argname);	\
+}
+
 static int adl_priv_set_partition_pblock_start(AppleDiskLabel *adl, int partnum,
 					       uint32_t block)
 {
@@ -192,12 +204,6 @@ static int adl_priv_set_partition_pblock_start(AppleDiskLabel *adl, int partnum,
 	reterr(0);
 }
 
-int adl_set_partition_pblock_start(AppleDiskLabel *adl, int partnum,
-				   uint32_t block)
-{
-	return adl_priv_set_partition_pblock_start(adl, partnum + 1, block);
-}
-
 static int adl_priv_get_partition_pblock_start(AppleDiskLabel *adl, int partnum,
 					       uint32_t *block)
 {
@@ -207,11 +213,7 @@ static int adl_priv_get_partition_pblock_start(AppleDiskLabel *adl, int partnum,
 	reterr(0);
 }
 
-int adl_get_partition_pblock_start(AppleDiskLabel *adl, int partnum,
-				   uint32_t *block)
-{
-	return adl_priv_get_partition_pblock_start(adl, partnum + 1, block);
-}
+make_public_part_getters(pblock_start, uint32_t, block);
 
 static int adl_priv_set_partition_blocks(AppleDiskLabel *adl, int partnum,
 					 uint32_t blocks)
@@ -225,12 +227,6 @@ static int adl_priv_set_partition_blocks(AppleDiskLabel *adl, int partnum,
 	reterr(0);
 }
 
-int adl_set_partition_blocks(AppleDiskLabel *adl, int partnum,
-			     uint32_t blocks)
-{
-	return adl_priv_set_partition_blocks(adl, partnum + 1, blocks);
-}
-
 static int adl_priv_get_partition_blocks(AppleDiskLabel *adl, int partnum,
 					 uint32_t *blocks)
 {
@@ -240,14 +236,9 @@ static int adl_priv_get_partition_blocks(AppleDiskLabel *adl, int partnum,
 	reterr(0);
 }
 
-int adl_get_partition_blocks(AppleDiskLabel *adl, int partnum,
-			     uint32_t *blocks)
-{
-	return adl_priv_get_partition_blocks(adl, partnum + 1, blocks);
-}
+make_public_part_getters(blocks, uint32_t, blocks);
 
-
-int adl_set_partition_flags(AppleDiskLabel *adl, int partnum,
+int adl_priv_set_partition_flags(AppleDiskLabel *adl, int partnum,
 			    uint32_t flags)
 {
 	if (!partnum_ok(adl, partnum))
@@ -256,7 +247,7 @@ int adl_set_partition_flags(AppleDiskLabel *adl, int partnum,
 	return 0;
 }
 
-int adl_get_partition_flags(AppleDiskLabel *adl, int partnum,
+int adl_priv_get_partition_flags(AppleDiskLabel *adl, int partnum,
 			    uint32_t *flags)
 {
 	if (!partnum_ok(adl, partnum))
@@ -264,6 +255,32 @@ int adl_get_partition_flags(AppleDiskLabel *adl, int partnum,
 	*flags = be32_to_cpu(adl->Partitions[partnum].RawPartEntry.Flags);
 	return 0;
 }
+
+make_public_part_getters(flags, uint32_t, flags);
+
+int adl_priv_set_partition_name(AppleDiskLabel *adl, int partnum, char *name)
+{
+	return 0;
+}
+
+int adl_priv_get_partition_name(AppleDiskLabel *adl, int partnum, char **name)
+{
+	return 0;
+}
+
+make_public_part_getters(name, char *, name);
+
+int adl_priv_set_partition_type(AppleDiskLabel *adl, int partnum, char *type)
+{
+	return 0;
+}
+
+int adl_priv_get_partition_type(AppleDiskLabel *adl, int partnum, char **type)
+{
+	return 0;
+}
+
+make_public_part_getters(type, char *, type);
 
 AppleDiskLabel *adl_new(void)
 {
@@ -462,6 +479,11 @@ static int readtest(char *filename)
 		return 3;
 	}
 
+	printf("Got apple partition map at 0x%lx\n", adl->DiskLocation);
+	printf("BlockSize %u, BlockCount %u\n",
+		be16_to_cpu(adl->RawLabel.BlockSize),
+		be32_to_cpu(adl->RawLabel.BlockCount));
+
 	int rc = 0;
 	for (int i = 0; i < adl_get_num_partitions(adl); i++) {
 		uint32_t startblock;
@@ -477,7 +499,7 @@ static int readtest(char *filename)
 			rc = 5;
 			break;
 		}
-		printf("Partition %d at 0x%x uses %d block%c\n", i, startblock,
+		printf(" partition %d at 0x%x uses %d block%c\n", i, startblock,
 			blocks, blocks == 1 ? '\0' : 's');
 	}
 

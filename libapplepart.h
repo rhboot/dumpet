@@ -64,6 +64,14 @@ extern int adl_set_partition_flags(AppleDiskLabel *adl, int partnum,
 extern int adl_get_partition_flags(AppleDiskLabel *adl, int partnum,
 				   uint32_t *flags);
 
+extern int adl_set_partition_name(AppleDiskLabel *adl, int partnum, char *name);
+extern int adl_get_partition_name(AppleDiskLabel *adl, int partnum,
+				  char **name);
+
+extern int adl_set_partition_type(AppleDiskLabel *adl, int partnum, char *type);
+extern int adl_get_partition_type(AppleDiskLabel *adl, int partnum,
+				  char **type);
+
 extern int _adl_add_partition(AppleDiskLabel **adl);
 #define adl_add_partition(adl) _adl_add_partition(&(adl))
 
