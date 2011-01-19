@@ -473,6 +473,36 @@ static void usage(int retcode)
 	exit(retcode);
 }
 
+static void printflags(AppleDiskLabel *adl, int partnum)
+{
+	uint32_t flags;
+	
+	adl_priv_get_partition_flags(adl, partnum, &flags);
+
+#define fp(flag)						\
+	if (flags & MAC_PARTITION_ ##flag) {			\
+		printf(#flag);					\
+		flags &= ~ MAC_PARTITION_ ##flag;		\
+		if (flags) printf("|");				\
+	}
+
+	fp(DUMMY);
+	fp(OS_SPECIFIC_0);
+	fp(OS_SPECIFIC_1);
+	fp(OS_SPECIFIC_2);
+	fp(OS_PIC_CODE);
+	fp(WRITABLE);
+	fp(READABLE);
+	fp(BOOTABLE);
+	fp(IN_USE);
+	fp(ALLOCATED);
+	fp(VALID);
+
+#undef fp
+	if (flags)
+		printf("0x%x", flags);
+}
+
 static int readtest(char *filename)
 {
 	int fd;
@@ -495,6 +525,9 @@ static int readtest(char *filename)
 	printf("BlockSize %u, BlockCount %u\n",
 		be16_to_cpu(adl->RawLabel.BlockSize),
 		be32_to_cpu(adl->RawLabel.BlockCount));
+	printf("Flags: ");
+	printflags(adl, 0);
+	printf("\n");
 
 	int rc = 0;
 	for (int i = 0; i < adl_get_num_partitions(adl); i++) {
@@ -529,6 +562,9 @@ static int readtest(char *filename)
 		printf(" partition \"%s\" of type \"%s\" at 0x%x "
 		       "uses %d block%c\n", name, type, startblock, blocks,
 		       blocks == 1 ? '\0' : 's');
+		printf("  flags: ");
+		printflags(adl, i+1);
+		printf("\n");
 	}
 
 	adl_free(adl);
