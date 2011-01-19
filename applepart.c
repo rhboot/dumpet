@@ -394,8 +394,9 @@ bad:
 	return adl;
 }
 
-int _adl_add_partition(AppleDiskLabel **adl)
+int _adl_add_partition(AppleDiskLabel **adlp)
 {
+	AppleDiskLabel *adl = *adlp;
 	int partnum = adl_priv_get_num_partitions(adl);
 	uint32_t new_num_parts = partnum + 1;
 	AppleDiskLabel *newadl;
@@ -406,8 +407,8 @@ int _adl_add_partition(AppleDiskLabel **adl)
 	if (!newadl)
 		return -1;
 
-	adl = newadl;
-	adp = adl->Partitions[partnum];
+	*adlp = adl = newadl;
+	adp = &adl->Partitions[partnum];
 
 	memset(adp, '\0',sizeof(*adp));
 	adp->Label = adl;
@@ -415,7 +416,7 @@ int _adl_add_partition(AppleDiskLabel **adl)
 
 	uint32_t new_num_parts_be = cpu_to_be32(new_num_parts);
 	for (int i = 0; i < new_num_parts; i++)
-		adl->Partitions[i].MapEntries = new_num_parts_be;
+		adl->Partitions[i].RawPartEntry.MapEntries = new_num_parts_be;
 	
 	adl_priv_set_partition_blocks(adl, 0,
 				      sizeof(MacPartitionEntry) * (partnum+1) /
