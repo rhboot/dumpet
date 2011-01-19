@@ -58,7 +58,9 @@ extern int adl_get_partition_blocks(AppleDiskLabel *adl, int partnum,
 #define MAC_PARTITION_OS_PIC_CODE	0x40
 #define MAC_PARTITION_OS_SPECIFIC_2	0x80
 #define MAC_PARTITION_OS_SPECIFIC_1	0x100
-#define MAC_PARTITION_RESERVED_BITS	0xFFFFFE00
+#define MAC_PARTITION_OS_SPECIFIC_0	0x200
+#define MAC_PARTITION_DUMMY		0x40000000
+#define MAC_PARTITION_RESERVED_BITS	0xBFFFFC00
 extern int adl_set_partition_flags(AppleDiskLabel *adl, int partnum,
 				   uint32_t flags);
 extern int adl_get_partition_flags(AppleDiskLabel *adl, int partnum,
