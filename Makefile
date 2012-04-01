@@ -6,9 +6,10 @@ CFLAGS:=-g3 -O2 -Wall -Werror --std=gnu99
 LFLAGS:=
 CC:=gcc
 TOOL := memcheck
+PKG_CONFIG:=pkg-config
 
-CFLAGS += $(shell pkg-config --cflags libxml-2.0)
-LFLAGS += -lpopt $(shell pkg-config --libs libxml-2.0)
+LIBXML_CFLAGS := $(shell $(PKG_CONFIG) --cflags libxml-2.0)
+LIBXML_LFLAGS := -lpopt $(shell $(PKG_CONFIG) --libs libxml-2.0)
 
 all : dumpet test
 
@@ -16,13 +17,13 @@ test : apmtest
 	valgrind --tool=$(TOOL) ./apmtest -r apple.mba31.restore.firstmeg.iso 
 
 dumpet : dumpet.o applepart.o
-	$(CC) $(CFLAGS) -o $@ $^ $(LFLAGS)
+	$(CC) $(CFLAGS) -o $@ $^ $(LFLAGS) -lpopt $(LIBXML_LFLAGS)
 
 apmtest : applepart.c
-	$(CC) $(CFLAGS) -DTEST_DUMPER -o $@ $^ $(LFLAGS)
+	$(CC) $(CFLAGS) $(LIBXML_CFLAGS) -DTEST_DUMPER -o $@ $^ $(LFLAGS) -lpopt $(LIBXML_LFLAGS)
 
 dumpet.o : dumpet.c dumpet.h iso9660.h eltorito.h endian.h
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) $(LIBXML_CFLAGS) -c -o $@ $<
 
 clean : 
 	@rm -vf *.o dumpet apmtest
