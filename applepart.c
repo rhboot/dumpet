@@ -17,6 +17,7 @@
  * Author:  Peter Jones <pjones@redhat.com>
  */
 
+#define _FILE_OFFSET_BITS 64
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
