@@ -2,14 +2,27 @@
 VERSION=2.1
 GITVERSION=$(shell [ -d .git ] && git rev-list  --abbrev-commit  -n 1 HEAD  |cut -b 1-8)
 
-CFLAGS:=-g3 -O2 -Wall -Werror --std=gnu99
-LFLAGS:=
-CC:=gcc
+CFLAGS := -g3 -O2 -Wall -Werror -Wno-unused-but-set-variable --std=gnu99
+LFLAGS :=
+
 TOOL := memcheck
-PKG_CONFIG:=pkg-config
+PKG_CONFIG := pkg-config
 
 LIBXML_CFLAGS := $(shell $(PKG_CONFIG) --cflags libxml-2.0)
 LIBXML_LFLAGS := -lpopt $(shell $(PKG_CONFIG) --libs libxml-2.0)
+
+ifeq ($(shell uname -s),Darwin)
+	IS_DARWIN=1
+	HAS_BREW=$(shell which brew)
+	ifneq ($(HAS_BREW),)
+		PREFIX=$(shell brew --prefix)
+	endif
+
+	CC=clang
+
+	CFLAGS += -I$(PREFIX)/include -I$(shell pwd)
+	LFLAGS += -L$(PREFIX)/lib
+endif
 
 all : dumpet test
 
