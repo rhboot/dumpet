@@ -19,7 +19,15 @@
 #ifndef ENDIAN_H
 #define ENDIAN_H
 
+#ifdef __APPLE__
+#include <machine/endian.h>
+#include <libkern/OSByteOrder.h>
+#define __bswap_16(x) OSSwapInt16(x)
+#define __bswap_32(x) OSSwapInt32(x)
+#define __bswap_64(x) OSSwapInt64(x)
+#else
 #include <endian.h>
+#endif
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 #define cpu_to_le16(x) (x)
