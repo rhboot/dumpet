@@ -522,7 +522,13 @@ static int readtest(char *filename)
 		return 3;
 	}
 
+	// fix for x64 data type compatibility
+#if __aarch64__ || __x86_64__
+	printf("Got apple partition map at 0x%llx\n", adl->DiskLocation);
+#else
 	printf("Got apple partition map at 0x%lx\n", adl->DiskLocation);
+#endif
+
 	printf("BlockSize %u, BlockCount %u\n",
 		be16_to_cpu(adl->RawLabel.BlockSize),
 		be32_to_cpu(adl->RawLabel.BlockCount));
