@@ -1,3 +1,5 @@
+apmtest
 dumpet
 *.o
 *.iso
+*.dSYM
